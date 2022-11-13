@@ -1,0 +1,3151 @@
+#!/usr/bin/env sh
+
+### Script: opensearch
+##
+## Open Search を利用する。
+##
+## Metadata:
+##
+##   id - 6343b25a-bc74-43b4-8e61-e38b9d95523c
+##   author - <qq542vev at https://purl.org/meta/me/>
+##   version - 0.1.0
+##   date - 2022-11-12
+##   since - 2020-04-20
+##   copyright - Copyright (C) 2020-2022 qq542vev. Some rights reserved.
+##   license - <CC-BY at https://creativecommons.org/licenses/by/4.0/>
+##   package - shell-opensearch
+##
+## See Also:
+##
+##   * <Project homepage at https://github.com/qq542vev/shell-opensearch>
+##   * <Bag report at https://github.com/qq542vev/shell-opensearch/issues>
+##
+## Help Output:
+##
+## ------ Text ------
+## Usage:
+##   opensearch [OPTION]... [SUB_COMMAND]
+##
+## Options:
+##   -c,     --config-directory DIRECTORY
+##                               設定ファイルのディレクトリを指定する
+##   -h,     --help              このヘルプを表示して終了する
+##   -v,     --version           バージョン情報を表示して終了する
+##
+## Commands:
+##   add       OpenSearch description document を追加する
+##   contact   OpenSearch description document の作成者に連絡する
+##   search    OpenSearch description document を元に検索を行う
+##   show      OpenSearch description document を表示する
+##   update    OpenSearch description document を更新する
+##   validate  OpenSearch description document を検査する
+##
+## Exit Status:
+##     0 - successful termination
+##    64 - command line usage error
+##    65 - data format error
+##    66 - cannot open input
+##    67 - addressee unknown
+##    68 - host name unknown
+##    69 - service unavailable
+##    70 - internal software error
+##    71 - system error (e.g., can't fork)
+##    72 - critical OS file missing
+##    73 - can't create (user) output file
+##    74 - input/output error
+##    75 - temp failure; user is invited to retry
+##    76 - remote error in protocol
+##    77 - permission denied
+##    78 - configuration error
+##   129 - received SIGHUP
+##   130 - received SIGINT
+##   131 - received SIGQUIT
+##   143 - received SIGTERM
+## ------------------
+
+readonly 'VERSION=opensearch 0.1.0'
+
+set -efu
+umask '0022'
+ORIGINAL_LC_ALL="${ORIGINAL_LC_ALL-${LC_ALL-}}"
+LC_ALL='C'
+IFS=$(printf ' \t\n_'); IFS="${IFS%_}"
+PATH="${PATH-}${PATH:+:}$(command -p getconf 'PATH')"
+UNIX_STD='2003' # HP-UX POSIX mode
+XPG_SUS_ENV='ON' # AIX POSIX mode
+XPG_UNIX98='OFF' # AIX UNIX 03 mode
+POSIXLY_CORRECT='1' # GNU Coreutils POSIX mode
+COMMAND_MODE='unix2003' # macOS UNIX 03 mode
+export 'IFS' 'LC_ALL' 'PATH' 'UNIX_STD' 'XPG_SUS_ENV' 'XPG_UNIX98' 'POSIXLY_CORRECT' 'COMMAND_MODE'
+
+readonly 'EX_OK=0'           # successful termination
+readonly 'EX__BASE=64'       # base value for error messages
+
+readonly 'EX_USAGE=64'       # command line usage error
+readonly 'EX_DATAERR=65'     # data format error
+readonly 'EX_NOINPUT=66'     # cannot open input
+readonly 'EX_NOUSER=67'      # addressee unknown
+readonly 'EX_NOHOST=68'      # host name unknown
+readonly 'EX_UNAVAILABLE=69' # service unavailable
+readonly 'EX_SOFTWARE=70'    # internal software error
+readonly 'EX_OSERR=71'       # system error (e.g., can't fork)
+readonly 'EX_OSFILE=72'      # critical OS file missing
+readonly 'EX_CANTCREAT=73'   # can't create (user) output file
+readonly 'EX_IOERR=74'       # input/output error
+readonly 'EX_TEMPFAIL=75'    # temp failure; user is invited to retry
+readonly 'EX_PROTOCOL=76'    # remote error in protocol
+readonly 'EX_NOPERM=77'      # permission denied
+readonly 'EX_CONFIG=78'      # configuration error
+
+readonly 'EX__MAX=78'        # maximum listed value
+
+trap 'case "${?}" in 0) end_call;; *) end_call "${EX_SOFTWARE}";; esac' 0 # EXIT
+trap 'end_call 129' 1  # SIGHUP
+trap 'end_call 130' 2  # SIGINT
+trap 'end_call 131' 3  # SIGQUIT
+trap 'end_call 143' 15 # SIGTERM
+
+### Function: end_call
+##
+## 一時ディレクトリを削除しスクリプトを終了する。
+##
+## Parameters:
+##
+##   $1 - 終了ステータス。
+##
+## Returns:
+##
+##   $1 の終了ステータス。
+
+end_call() {
+	trap '' 0 # EXIT
+	rm -fr -- ${tmpDir:+"${tmpDir}"}
+	exit "${1:-0}"
+}
+
+### Function: option_error
+##
+## エラーメッセージを出力する。
+##
+## Parameters:
+##
+##   $1 - エラーメッセージ。
+##
+## Returns:
+##
+##   終了コード64。
+
+option_error() {
+	printf '%s: %s\n' "${0##*/}" "${1}" >&2
+	printf "詳細については '%s' を実行してください。\\n" "${0##*/} --help" >&2
+
+	end_call "${EX_USAGE}"
+}
+
+### Function: regex_match
+##
+## 文字列が正規表現に一致するか検査する。
+##
+## Parameters:
+##
+##   $1 - 検査する文字列。
+##   $@ - 正規表現。
+##
+## Returns:
+##
+##   0か1の真理値。
+
+regex_match() {
+	awk -- '
+		BEGIN {
+			for(i = 2; i < ARGC; i++) {
+				if(ARGV[1] !~ ARGV[i]) {
+					exit 1
+				}
+			}
+
+			exit
+		}
+	' ${@+"${@}"} || return 1
+
+	return 0
+}
+
+### Function: append_array_posix
+##
+## 配列風文字列に要素を追加する。
+##
+## Parameters:
+##
+##   $1 - 結果を代入する変数名。
+##   $@ - 追加する要素。
+
+append_array_posix() {
+	while [ 2 -le "${#}" ]; do
+		__append_array_posix "${1}" "${2}"
+
+		eval "shift 2; set -- '${1}'" '${@+"${@}"}'
+	done
+}
+
+### Function: __append_array_posix
+##
+## 配列風文字列に要素を追加する。
+##
+## Parameters:
+##
+##   $1 - 結果を代入する変数名。
+##   $2 - 追加する要素。
+
+__append_array_posix() {
+	set "${1}" "${2-}" ''
+
+	until [ "${2#*\'}" '=' "${2}" ]; do
+		set -- "${1}" "${2#*\'}" "${3}${2%%\'*}'\"'\"'"
+	done
+
+	eval "${1}=\"\${${1}-}\${${1}:+ }'\${3}\${2}'\""
+}
+
+### Function: awkv_escape
+##
+## 文字列内の AWK 特殊文字をエスケープする。
+##
+## Parameters:
+##
+##   $1 - 結果を代入する変数名。
+##   $2 - エスケープする文字列。
+##
+## See Also:
+##
+##   * <4.2 POSIX 準拠シェル 用 at https://qiita.com/ko1nksm/items/a22c0ce88e39c9f2dcb0#42-posix-%E6%BA%96%E6%8B%A0%E3%82%B7%E3%82%A7%E3%83%AB-%E7%94%A8>
+
+awkv_escape() {
+	set -- "${1}" "${2}" ''
+	until [ "${2#*\\}" '=' "${2}" ]; do
+		set -- "${1}" "${2#*\\}" "${3}${2%%\\*}\\\\"
+	done
+
+	set -- "${1}" "${3}${2}"
+	case "${2}" in
+		@*) set -- "${1}" "\\100${2#?}";;
+	esac
+
+	eval "${1}=\${2}"
+}
+
+add_parameter() {
+	case "${2}" in
+		'{'?*'}'*=*)
+			set -- "${1}" "${2}" "${2%%\}*}" "${2#*\}}"
+
+			append_array_posix "${1}" "${3}}${4%%=*}" "${4#*=}"
+			;;
+		*) append_array_posix "${1}" "{${OPENSEARCH_NS}}${2%%=*}" "${2#*=}";;
+	esac
+}
+
+template_parameter_check() {
+	awk -- "$(
+		cat <<-'__EOF__'
+		### Function: uri_check
+		##
+		## 文字列が URI であるか検査する。
+		##
+		## Parameters:
+		##
+		##   uri - 検査する文字列。
+		##   relative - 相対 URI を許可する。
+		##
+		## Returns:
+		##
+		##   0か1の真理値。
+
+		function uri_check(uri, relative) {
+			if(relative) {
+				return (uri ~ /^([A-Za-z][A-Za-z0-9+.-]*:)?(\/\/(([!$&-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*@)?(\[(((([0-9A-F]{1,4}:){6}|::([0-9A-F]{1,4}:){5}|([0-9A-F]{1,4})?::([0-9A-F]{1,4}:){4}|(([0-9A-F]{1,4}:){0,1}[0-9A-F]{1,4})?::([0-9A-F]{1,4}:){3}|(([0-9A-F]{1,4}:){0,2}[0-9A-F]{1,4})?::([0-9A-F]{1,4}:){2}|(([0-9A-F]{1,4}:){0,3}[0-9A-F]{1,4})?::[0-9A-F]{1,4}:|(([0-9A-F]{1,4}:){0,4}[0-9A-F]{1,4})?::)([0-9A-F]{1,4}:[0-9A-F]{1,4}|(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(([0-9A-F]{1,4}:){0,5}[0-9A-F]{1,4})?::[0-9A-F]{1,4}|(([0-9A-F]{1,4}:){0,6}[0-9A-F]{1,4})?::)|v[0-9A-F]+\.[!$&-.0-;=A-Z_a-z~]+)\]|([A-Za-z0-9._~!$&'()*+,;=-]|%[0-9A-Fa-f]{2})*)(:[0-9]*)?(\/([!$&-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2})*)*|\/(([!$&-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2})+(\/([!$&-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2})*)*)?|([!$&-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2})+(\/([!$&-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2})*)*|)(\?([!$&-;=?-Z_a-z~]|%[0-9A-Fa-f]{2})*)?(#([!$&-;=?-Z_a-z~]|%[0-9A-Fa-f]{2})*)?$/)
+			} else {
+				return (uri ~ /^[A-Za-z][A-Za-z0-9+.-]*:(\/\/(([!$&-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*@)?(\[(((([0-9A-F]{1,4}:){6}|::([0-9A-F]{1,4}:){5}|([0-9A-F]{1,4})?::([0-9A-F]{1,4}:){4}|(([0-9A-F]{1,4}:){0,1}[0-9A-F]{1,4})?::([0-9A-F]{1,4}:){3}|(([0-9A-F]{1,4}:){0,2}[0-9A-F]{1,4})?::([0-9A-F]{1,4}:){2}|(([0-9A-F]{1,4}:){0,3}[0-9A-F]{1,4})?::[0-9A-F]{1,4}:|(([0-9A-F]{1,4}:){0,4}[0-9A-F]{1,4})?::)([0-9A-F]{1,4}:[0-9A-F]{1,4}|(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(([0-9A-F]{1,4}:){0,5}[0-9A-F]{1,4})?::[0-9A-F]{1,4}|(([0-9A-F]{1,4}:){0,6}[0-9A-F]{1,4})?::)|v[0-9A-F]+\.[!$&-.0-;=A-Z_a-z~]+)\]|([A-Za-z0-9._~!$&'()*+,;=-]|%[0-9A-Fa-f]{2})*)(:[0-9]*)?(\/([!$&-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2})*)*|\/(([!$&-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2})+(\/([!$&-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2})*)*)?|([!$&-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2})+(\/([!$&-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2})*)*|)(\?([!$&-;=?-Z_a-z~]|%[0-9A-Fa-f]{2})*)?(#([!$&-;=?-Z_a-z~]|%[0-9A-Fa-f]{2})*)?$/)
+			}
+		}
+
+		BEGIN {
+			parameter = ARGV[1]
+
+			if(match(parameter, /^\{[^}]*\}/)) {
+				if(!uri_check(substr(parameter, 2, RLENGTH - 2))) {
+					exit 1
+				}
+
+				parameter = substr(parameter, RLENGTH + 1)
+			}
+
+			exit !(parameter ~ /=/)
+		}
+		__EOF__
+	)" "${1}"
+}
+
+# @getoptions
+parser_definition() {
+	setup REST abbr:true error:option_error plus:true no:0 help:usage \
+		-- 'Usage:' "  ${2##*/} [OPTION]... [COMMAND]" \
+		'' 'Options:'
+
+	param configDir -c --config-directory init:'configDir="${HOME}/.shell-opensearch"' pattern:'?*' var:DIRECTORY -- '設定ファイルのディレクトリを指定する'
+	disp  :usage    -h --help             -- 'このヘルプを表示して終了する'
+	disp  VERSION   -v --version          -- 'バージョン情報を表示して終了する'
+
+	msg -- '' 'Commands:'
+
+	cmd add      -- 'OpenSearch description document を追加する'
+	cmd contact  -- 'OpenSearch description document の作成者に連絡する'
+	cmd search   -- 'OpenSearch description document を元に検索を行う'
+	cmd show     -- 'OpenSearch description document を表示する'
+	cmd update   -- 'OpenSearch description document を更新する'
+	cmd validate -- 'OpenSearch description document を検査する'
+
+	msg -- '' 'Exit Status:' \
+		'    0 - successful termination' \
+		'   64 - command line usage error' \
+		'   65 - data format error' \
+		'   66 - cannot open input' \
+		'   67 - addressee unknown' \
+		'   68 - host name unknown' \
+		'   69 - service unavailable' \
+		'   70 - internal software error' \
+		"   71 - system error (e.g., can't fork)" \
+		'   72 - critical OS file missing' \
+		"   73 - can't create (user) output file" \
+		'   74 - input/output error' \
+		'   75 - temp failure; user is invited to retry' \
+		'   76 - remote error in protocol' \
+		'   77 - permission denied' \
+		'   78 - configuration error' \
+		'  129 - received SIGHUP' \
+		'  130 - received SIGINT' \
+		'  131 - received SIGQUIT' \
+		'  143 - received SIGTERM'
+}
+
+parser_definition_add() {
+	setup REST abbr:true error:option_error plus:true no:0 help:usage_add \
+		-- 'Usage:' \
+			"  ${2##*/} add [OPTION]... NAME URL" \
+			"  ${2##*/} add [OPTION]... FILE_PATH URL" \
+		'' 'Options:'
+
+	disp :usage_add -h --help -- 'このヘルプを表示して終了する'
+}
+
+parser_definition_contact() {
+	setup REST abbr:true error:option_error plus:true no:0 help:usage_contact \
+		-- 'Usage:' \
+			"  ${2##*/} contact [OPTION]... NAME[,NAME]..." \
+			"  ${2##*/} contact [OPTION]... OPENSEARCH_FILE" \
+		'' 'Options:'
+
+	option extarnal       -e --{no-}extarnal init:@no on:"${MAILER:-mutt}" no:echo var:'COMMAND' -- '外部プログラムを起動する'
+	disp   :usage_contact -h --help          -- 'このヘルプを表示して終了する'
+}
+
+parser_definition_search() {
+	setup REST abbr:true error:option_error plus:true no:0 help:usage_search \
+		-- 'Usage:' \
+			"  ${2##*/} search [OPTION]... NAME[,NAME]... [KEYWORD]..." \
+			"  ${2##*/} search [OPTION]... OPENSEARCH_FILE [KEYWORD]..." \
+		'' 'Options:'
+
+	option extarnal      -e --{no-}extarnal      init:@no on:"${BROWSER:-lynx}" no:echo var:'COMMAND' -- '外部プログラムを起動する'
+	param  :'add_parameter "parameters" "${OPTARG}"' -p --template-parameter validate:'template_parameter_check "${OPTARG}"' var:'[{NAMESPACE_URI}]NAME=[VALUE]' -- 'テンプレートパラメータを指定する'
+	flag   parameters    --no-template-parameter init:@no on: no: -- '-p, --template-parameter をリセットする'
+	param  mimeType      -t --accept-type        init:='text/html,application/xhtml+xml,application/atom+xml,application/rss+xml,application/xml,text/plain,text/*,*/*' var:'MIME_TYPE[,MIME_TYPE]...' validate:"regex_match \"\${OPTARG}\" \"^(application|audio|font|example|image|message|model|multipart|text|video|x-[!#-'*+.0-9A-Z^_-z|~-]+|\*)/[!#-'*+.0-9A-Z\^_-z|~-]+(,(application|audio|font|example|image|message|model|multipart|text|video|x-[!#-'*+.0-9A-Z^_-z|~-]+|\*)/[!#-'*+.0-9A-Z\^_-z|~-]+)*$\"" -- '希望するリソースの MIME タイプを指定する'
+	disp   :usage_search -h --help               -- 'このヘルプを表示して終了する'
+}
+
+parser_definition_show() {
+	setup REST abbr:true error:option_error plus:true no:0 help:usage_show \
+		-- 'Usage:' \
+			"  ${2##*/} show [OPTION]... NAME[,NAME]... [OPENSEARCH_ELEMENT]..." \
+			"  ${2##*/} show [OPTION]... OPENSEARCH_FILE [OPENSEARCH_ELEMENT]..." \
+		'' 'Options:'
+
+	param  format     -f --format init:='text' pattern:'text | xml | normalized-xml' var:'text | xml | normalized-xml' -- '表示形式を指定する'
+	option indent     -s --{no-}indent-space init:@on on:2 no:0 validate:'regex_match "${OPTARG}" "^0$|^[1-9][0-9]*$"' var:'NUMBER' -- 'インデントを行う'
+	disp  :usage_show -h --help   -- 'このヘルプを表示して終了する'
+}
+
+parser_definition_update() {
+	setup REST abbr:true error:option_error plus:true no:0 help:usage_update \
+		-- 'Usage:' \
+			"  ${2##*/} update [OPTION]... NAME[,NAME]..." \
+			"  ${2##*/} update [OPTION]... OPENSEARCH_FILE" \
+		'' 'Options:'
+
+	param :'add_parameter "parameters" "${OPTARG}"' -p --template-parameter validate:'template_parameter_check "${OPTARG}"' var:'[{NAMESPACE_URI}]NAME=VALUE' -- 'テンプレートパラメータを指定する'
+	flag  parameters   --no-template-parameter init:@no on: no: -- '-p, --template-parameter をリセットする'
+	disp :usage_update -h --help  -- 'このヘルプを表示して終了する'
+}
+
+parser_definition_validate() {
+	setup REST abbr:true error:option_error plus:true no:0 help:usage_validate \
+		-- 'Usage:' \
+			"  ${2##*/} validate [OPTION]... NAME[,NAME]..." \
+			"  ${2##*/} validate [OPTION]... OPENSEARCH_FILE" \
+		'' 'Options:'
+
+	flag errorFlag       -e --{no-}error init:@no no: -- 'print verbose error messages on stderr'
+	flag quietFlag       -q --{no-}quiet init:@no no: -- 'do not list files (return result code only)'
+	disp :usage_validate -h --help  -- 'このヘルプを表示して終了する'
+}
+# @end
+
+# @gengetoptions parser -i parser_definition parse "${1}"
+# Generated by getoptions (BEGIN)
+# URL: https://github.com/ko1nksm/getoptions (v3.3.0)
+configDir="${HOME}/.shell-opensearch"
+REST=''
+parse() {
+  OPTIND=$(($#+1))
+  while OPTARG= && [ $# -gt 0 ]; do
+    set -- "${1%%\=*}" "${1#*\=}" "$@"
+    while [ ${#1} -gt 2 ]; do
+      case $1 in (*[!a-zA-Z0-9_-]*) break; esac
+      case '--config-directory' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --config-directory"
+      esac
+      case '--help' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --help"
+      esac
+      case '--version' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --version"
+      esac
+      break
+    done
+    case ${OPTARG# } in
+      *\ *)
+        eval "set -- $OPTARG $1 $OPTARG"
+        OPTIND=$((($#+1)/2)) OPTARG=$1; shift
+        while [ $# -gt "$OPTIND" ]; do OPTARG="$OPTARG, $1"; shift; done
+        set "Ambiguous option: $1 (could be $OPTARG)" ambiguous "$@"
+        option_error "$@" >&2 || exit $?
+        echo "$1" >&2
+        exit 1 ;;
+      ?*)
+        [ "$2" = "$3" ] || OPTARG="$OPTARG=$2"
+        shift 3; eval 'set -- "${OPTARG# }"' ${1+'"$@"'}; OPTARG= ;;
+      *) shift 2
+    esac
+    case $1 in
+      --?*=*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%%\=*}" "${OPTARG#*\=}"' ${1+'"$@"'}
+        ;;
+      --no-*|--without-*) unset OPTARG ;;
+      -[c]?*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%"${OPTARG#??}"}" "${OPTARG#??}"' ${1+'"$@"'}
+        ;;
+      -[hv]?*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%"${OPTARG#??}"}" -"${OPTARG#??}"' ${1+'"$@"'}
+        OPTARG= ;;
+      +*) unset OPTARG ;;
+    esac
+    case $1 in
+      '-c'|'--config-directory')
+        [ $# -le 1 ] && set "required" "$1" && break
+        OPTARG=$2
+        case $OPTARG in ?*) ;;
+          *) set "pattern:?*" "$1"; break
+        esac
+        configDir="$OPTARG"
+        shift ;;
+      '-h'|'--help')
+        usage
+        exit 0 ;;
+      '-v'|'--version')
+        echo "${VERSION}"
+        exit 0 ;;
+      --)
+        while [ $# -gt 0 ]; do
+          REST="${REST} \"\${$(($OPTIND-$#))}\""
+          shift
+        done
+        break ;;
+      [-+]?*) set "unknown" "$1"; break ;;
+      *)
+        case $1 in 'add'|'contact'|'search'|'show'|'update'|'validate') ;;
+          *) set "notcmd" "$1"; break
+        esac
+        while [ $# -gt 0 ]; do
+          REST="${REST} \"\${$(($OPTIND-$#))}\""
+          shift
+        done
+        break ;;
+    esac
+    shift
+  done
+  [ $# -eq 0 ] && { OPTIND=1; unset OPTARG; return 0; }
+  case $1 in
+    unknown) set "Unrecognized option: $2" "$@" ;;
+    noarg) set "Does not allow an argument: $2" "$@" ;;
+    required) set "Requires an argument: $2" "$@" ;;
+    pattern:*) set "Does not match the pattern (${1#*:}): $2" "$@" ;;
+    notcmd) set "Not a command: $2" "$@" ;;
+    *) set "Validation error ($1): $2" "$@"
+  esac
+  option_error "$@" >&2 || exit $?
+  echo "$1" >&2
+  exit 1
+}
+usage() {
+cat<<'GETOPTIONSHERE'
+Usage:
+  opensearch [OPTION]... [COMMAND]
+
+Options:
+  -c,     --config-directory DIRECTORY 
+                              設定ファイルのディレクトリを指定する
+  -h,     --help              このヘルプを表示して終了する
+  -v,     --version           バージョン情報を表示して終了する
+
+Commands:
+  add       OpenSearch description document を追加する
+  contact   OpenSearch description document の作成者に連絡する
+  search    OpenSearch description document を元に検索を行う
+  show      OpenSearch description document を表示する
+  update    OpenSearch description document を更新する
+  validate  OpenSearch description document を検査する
+
+Exit Status:
+    0 - successful termination
+   64 - command line usage error
+   65 - data format error
+   66 - cannot open input
+   67 - addressee unknown
+   68 - host name unknown
+   69 - service unavailable
+   70 - internal software error
+   71 - system error (e.g., can't fork)
+   72 - critical OS file missing
+   73 - can't create (user) output file
+   74 - input/output error
+   75 - temp failure; user is invited to retry
+   76 - remote error in protocol
+   77 - permission denied
+   78 - configuration error
+  129 - received SIGHUP
+  130 - received SIGINT
+  131 - received SIGQUIT
+  143 - received SIGTERM
+GETOPTIONSHERE
+}
+# Generated by getoptions (END)
+# @end
+
+argument_check() {
+	argument_to_filepath "${1}" "${2}"
+
+	eval "set -- $(eval printf '%s' "\"\${${1}}\"")"
+
+	while [ "${#}" -ne '0' ]; do
+		opensearch_file_check --err --quiet "${1}"
+
+		shift
+	done
+}
+
+argument_count_check() {
+	if [ "${1}" -lt "${2:-0}" ]; then
+		printf "%s: 引数が不足しています。\\n" "${0##*/}" >&2
+		printf "詳細については '%s' を実行してください。\\n" "${0##*/} --help" >&2
+
+		end_call "${EX_USAGE}"
+	elif [ -n "${3:-}" ] && [ "${3}" -lt "${1}" ]; then
+		printf "%s: 引数が超過しています。\\n" "${0##*/}" >&2
+		printf "詳細については '%s' を実行してください。\\n" "${0##*/} --help" >&2
+
+		end_call "${EX_USAGE}"
+	fi
+}
+
+argument_to_filepath() {
+	eval "${1}=\"\${${1}-}\""
+
+	case "${2}" in
+		*/*) append_array_posix "${1}" "${2}";;
+		*)
+			until [ "${2}" '=' "${2%%,*}" ]; do
+				append_array_posix "${1}" "${configDir}/${2%%,*}.xml"
+
+				set -- "${1}" "${2#*,}"
+			done
+
+			append_array_posix "${1}" "${configDir}/${2}.xml"
+			;;
+	esac
+}
+
+download() {
+	if command -v 'wget' >'/dev/null'; then
+		wget --header "Accept: ${3-*/*}" --no-verbose --output-document "${1}" -- "${2}"
+	elif command -v 'curl' >'/dev/null'; then
+		curl --compressed --fail --header "Accept: ${3-*/*}" --location --output "${1}" --silent --show-error -- "${2}"
+	else
+		printf "%s: 'wget' または 'curl' が必要です。\\n" "${0##*/}" >&2
+		printf "詳細については '%s' を実行してください。\\n" "${0##*/} --help" >&2
+
+		end_call "${EX_UNAVAILABLE}"
+	fi
+}
+
+opensearch_add() {
+# @gengetoptions parser -i parser_definition_add parse_add "${1}"
+# Generated by getoptions (BEGIN)
+# URL: https://github.com/ko1nksm/getoptions (v3.3.0)
+REST=''
+parse_add() {
+  OPTIND=$(($#+1))
+  while OPTARG= && [ $# -gt 0 ]; do
+    set -- "${1%%\=*}" "${1#*\=}" "$@"
+    while [ ${#1} -gt 2 ]; do
+      case $1 in (*[!a-zA-Z0-9_-]*) break; esac
+      case '--help' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --help"
+      esac
+      break
+    done
+    case ${OPTARG# } in
+      *\ *)
+        eval "set -- $OPTARG $1 $OPTARG"
+        OPTIND=$((($#+1)/2)) OPTARG=$1; shift
+        while [ $# -gt "$OPTIND" ]; do OPTARG="$OPTARG, $1"; shift; done
+        set "Ambiguous option: $1 (could be $OPTARG)" ambiguous "$@"
+        option_error "$@" >&2 || exit $?
+        echo "$1" >&2
+        exit 1 ;;
+      ?*)
+        [ "$2" = "$3" ] || OPTARG="$OPTARG=$2"
+        shift 3; eval 'set -- "${OPTARG# }"' ${1+'"$@"'}; OPTARG= ;;
+      *) shift 2
+    esac
+    case $1 in
+      --?*=*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%%\=*}" "${OPTARG#*\=}"' ${1+'"$@"'}
+        ;;
+      --no-*|--without-*) unset OPTARG ;;
+      -[h]?*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%"${OPTARG#??}"}" -"${OPTARG#??}"' ${1+'"$@"'}
+        OPTARG= ;;
+      +*) unset OPTARG ;;
+    esac
+    case $1 in
+      '-h'|'--help')
+        usage_add
+        exit 0 ;;
+      --)
+        shift
+        while [ $# -gt 0 ]; do
+          REST="${REST} \"\${$(($OPTIND-$#))}\""
+          shift
+        done
+        break ;;
+      [-+]?*) set "unknown" "$1"; break ;;
+      *)
+        REST="${REST} \"\${$(($OPTIND-$#))}\""
+    esac
+    shift
+  done
+  [ $# -eq 0 ] && { OPTIND=1; unset OPTARG; return 0; }
+  case $1 in
+    unknown) set "Unrecognized option: $2" "$@" ;;
+    noarg) set "Does not allow an argument: $2" "$@" ;;
+    required) set "Requires an argument: $2" "$@" ;;
+    pattern:*) set "Does not match the pattern (${1#*:}): $2" "$@" ;;
+    notcmd) set "Not a command: $2" "$@" ;;
+    *) set "Validation error ($1): $2" "$@"
+  esac
+  option_error "$@" >&2 || exit $?
+  echo "$1" >&2
+  exit 1
+}
+usage_add() {
+cat<<'GETOPTIONSHERE'
+Usage:
+  opensearch add [OPTION]... NAME URL
+  opensearch add [OPTION]... FILE_PATH URL
+
+Options:
+  -h,     --help              このヘルプを表示して終了する
+GETOPTIONSHERE
+}
+# Generated by getoptions (END)
+# @end
+
+	argument_count_check "${#}" '2' '2'
+
+	parse_add ${@+"${@}"}
+	eval "set -- ${REST}"
+
+	case "${1}" in
+		*'/'*) dest="${1}";;
+		*)
+			mkdir -p -- "${configDir}"
+
+			dest="${configDir}/${1}.xml"
+			;;
+	esac
+
+	url="${2}"
+	downloadXML="${tmpDir}/download.xml"
+	downloadHTML="${tmpDir}/download.html"
+	awkScript=$(
+		cat <<-'__EOF__'
+		### Function: uri_path_remove_dot_segments
+		##
+		## パス文字列内からドットセグメントを除去する。
+		##
+		## Parameters:
+		##
+		##   path - パス文字列。
+		##
+		## Returns:
+		##
+		##   ドットセグメントが除去された文字列。
+		##
+		## See Also:
+		##
+		##   * <5.2.4. Remove Dot Segments at https://www.rfc-editor.org/rfc/rfc3986#section-5.2.4>
+
+		function uri_path_remove_dot_segments(path,  result) {
+			if(!index(path, ".")) {
+				return path
+			}
+
+			result = ""
+
+			while(path != "") {
+				if(index(path, "./") == 1) {
+					path = substr(path, 3)
+				} else if(index(path, "../") == 1) {
+					path = substr(path, 4)
+				} else if(index(path, "/./") == 1) {
+					path = substr(path, 3)
+				} else if(path == "/.") {
+						path = "/"
+				} else if(index(path, "/../") == 1) {
+					path = substr(path, 4)
+					gsub(/\/?[^\/]*$/, "", result)
+				} else if(path == "/..") {
+					path = "/"
+					gsub(/\/?[^\/]*$/, "", result)
+				} else if(path == "." || path == "..") {
+					path = ""
+				} else {
+					match(path, /^.[^\/]*/)
+
+					result = result substr(path, RSTART, RLENGTH)
+					path = substr(path, RLENGTH + 1)
+				}
+			}
+
+			return result
+		}
+
+		### Function: uri_parse
+		##
+		## URI の構成要素を分離する。
+		##
+		## Parameters:
+		##
+		##   uri - 分離する URI。
+		##   element - 構成要素格納する配列。
+
+		function uri_parse(uri, element,  pattern,key,i,auth,result) {
+			split("^[^:/?#]*: ^//[^/?#]* ^[^?#]* ^\\?[^#]* ^#.* ^[^@/?#]*@ ^[^:/?#]* ^:[^/?#]*", pattern, " ")
+			split("scheme authority path query fragment userinfo host port", key, " ")
+			split("", element)
+
+			for(i = 1; i <= 5; i++) {
+				element[key[i]] = ""
+
+				if(match(uri, pattern[i])) {
+					element[key[i]] = substr(uri, RSTART, RLENGTH)
+					uri = substr(uri, RSTART + RLENGTH)
+				}
+			}
+
+			element["userinfo"] = ""
+			element["host"] = ""
+			element["port"] = ""
+
+			if(element["authority"]) {
+				auth = substr(element["authority"], 3)
+
+				for(i = 6; i <= 8; i++) {
+					if(match(auth, pattern[i])) {
+						element[key[i]] = substr(auth, RSTART, RLENGTH)
+						auth = substr(auth, RSTART + RLENGTH)
+					}
+				}
+			}
+		}
+
+		### Function: uri_relative_to_absolute
+		##
+		## 相対 URI を絶対 URI に変換する
+		##
+		## Parameters:
+		##
+		##   uri - 相対 URI。
+		##   baseURIElements - 基底 URI の各要素の配列。
+		##
+		## See Also:
+		##
+		##   * <5.2.2. Transform References at https://www.rfc-editor.org/rfc/rfc3986#section-5.2.2>
+
+		function uri_relative_to_absolute(uri, baseURIElements,  elements,names,count,result,i) {
+			uri_parse(uri, elements)
+			count = split("scheme authority path query fragment", names, " ")
+			result = ""
+
+			for(i = 1; i <= count; i++) {
+				if(elements[names[i]] == "") {
+					result = result baseURIElements[names[i]]
+				} else {
+					if(names[i] == "path" && index(elements["path"], "/") != 1) {
+						gsub("/[^/]*$", "/", baseURIElements["path"])
+
+						elements["path"] = baseURIElements["path"] elements[names[i]]
+					}
+
+					for(; i <= count; i++) {
+						if(names[i] == "path") {
+							elements["path"] = uri_path_remove_dot_segments(elements["path"])
+						}
+
+						result = result elements[names[i]]
+					}
+				}
+			}
+
+			return result
+		}
+
+		BEGIN {
+			uri_parse(baseURL, baseURIElements)
+		}
+
+		$0 != "" {
+			printf("%s\n", uri_relative_to_absolute($0, baseURIElements))
+		}
+		__EOF__
+	)
+
+	download \
+		"${downloadXML}" "${url}" \
+		"${OPENSEARCH_MIME_TYPE}, application/xml, text/html, application/xhtml+xml"
+
+	if opensearch_file_check --quiet "${downloadXML}"; then
+		cat -- "${downloadXML}" >"${dest}"
+
+		end_call
+	elif xml format --html --quiet "${downloadXML}" | tee -- "${downloadHTML}" | xml validate --quiet -; then
+		baseURL=$(
+			{
+				xml select -N "xhtml=${XHTML_NS}" --template \
+					--match '(/html/head/base | /xhtml:html/xhtml:head/xhtml:base)/@href[1]' \
+					--value-of 'normalize-space()' "${downloadHTML}" \
+				|| printf '%s' "${url}"
+			} | awk -v "baseURL=${url}" -- "${awkScript}"
+		)
+
+		xml select -N "xhtml=${XHTML_NS}" --template \
+			--match '(/html/head/link | /xhtml:html/xhtml:head/xhtml:link)[@href]' \
+			--match "self::*[normalize-space(@type) = '${OPENSEARCH_MIME_TYPE}']" \
+			--match 'self::*[contains(concat(" ", translate(normalize-space(@rel), "SEARCH", "search"), " "), "search")]' \
+			--value-of 'normalize-space(@href)' --nl "${downloadHTML}" \
+		| awk -v "baseURL=${url}" -- "${awkScript}" \
+		| while read -r linkURL; do
+			if download "${downloadXML}" "${linkURL}" && opensearch_file_check --quiet "${downloadXML}"; then
+				: >"${tmpDir}/success"
+				cat -- "${downloadXML}" >"${dest}"
+
+				break
+			fi
+		done
+
+		if [ '!' -f "${tmpDir}/success" ]; then
+			printf "%s: '%s' は OpenSearch description document へのリンクが見つかりません。\\n" "${0##*/}" "${url}" >&2
+			printf "詳細については '%s' を実行してください。\\n" "${0##*/} --help" >&2
+
+			end_call "${EX_DATAERR}"
+		fi
+	else
+		printf "%s: '%s' は 互換性のないファイル形式です。\\n" "${0##*/}" "${url}" >&2
+		printf "詳細については '%s' を実行してください。\\n" "${0##*/} --help" >&2
+
+		end_call "${EX_DATAERR}"
+	fi
+}
+
+opensearch_contact() {
+# @gengetoptions parser -i parser_definition_contact parse_contact "${1}"
+# Generated by getoptions (BEGIN)
+# URL: https://github.com/ko1nksm/getoptions (v3.3.0)
+extarnal='echo'
+REST=''
+parse_contact() {
+  OPTIND=$(($#+1))
+  while OPTARG= && [ $# -gt 0 ]; do
+    set -- "${1%%\=*}" "${1#*\=}" "$@"
+    while [ ${#1} -gt 2 ]; do
+      case $1 in (*[!a-zA-Z0-9_-]*) break; esac
+      case '--extarnal' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --extarnal"
+      esac
+      case '--no-extarnal' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --no-extarnal"
+      esac
+      case '--help' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --help"
+      esac
+      break
+    done
+    case ${OPTARG# } in
+      *\ *)
+        eval "set -- $OPTARG $1 $OPTARG"
+        OPTIND=$((($#+1)/2)) OPTARG=$1; shift
+        while [ $# -gt "$OPTIND" ]; do OPTARG="$OPTARG, $1"; shift; done
+        set "Ambiguous option: $1 (could be $OPTARG)" ambiguous "$@"
+        option_error "$@" >&2 || exit $?
+        echo "$1" >&2
+        exit 1 ;;
+      ?*)
+        [ "$2" = "$3" ] || OPTARG="$OPTARG=$2"
+        shift 3; eval 'set -- "${OPTARG# }"' ${1+'"$@"'}; OPTARG= ;;
+      *) shift 2
+    esac
+    case $1 in
+      --?*=*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%%\=*}" "${OPTARG#*\=}"' ${1+'"$@"'}
+        ;;
+      --no-*|--without-*) unset OPTARG ;;
+      -[e]?*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%"${OPTARG#??}"}" "${OPTARG#??}"' ${1+'"$@"'}
+        ;;
+      -[h]?*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%"${OPTARG#??}"}" -"${OPTARG#??}"' ${1+'"$@"'}
+        OPTARG= ;;
+      +*) unset OPTARG ;;
+    esac
+    case $1 in
+      '-e'|'--extarnal'|'--no-extarnal')
+        set -- "$1" "$@"
+        [ ${OPTARG+x} ] && {
+          case $1 in --no-*|--without-*) set "noarg" "${1%%\=*}"; break; esac
+          [ "${OPTARG:-}" ] && { shift; OPTARG=$2; } || OPTARG='mutt'
+        } || OPTARG='echo'
+        extarnal="$OPTARG"
+        shift ;;
+      '-h'|'--help')
+        usage_contact
+        exit 0 ;;
+      --)
+        shift
+        while [ $# -gt 0 ]; do
+          REST="${REST} \"\${$(($OPTIND-$#))}\""
+          shift
+        done
+        break ;;
+      [-+]?*) set "unknown" "$1"; break ;;
+      *)
+        REST="${REST} \"\${$(($OPTIND-$#))}\""
+    esac
+    shift
+  done
+  [ $# -eq 0 ] && { OPTIND=1; unset OPTARG; return 0; }
+  case $1 in
+    unknown) set "Unrecognized option: $2" "$@" ;;
+    noarg) set "Does not allow an argument: $2" "$@" ;;
+    required) set "Requires an argument: $2" "$@" ;;
+    pattern:*) set "Does not match the pattern (${1#*:}): $2" "$@" ;;
+    notcmd) set "Not a command: $2" "$@" ;;
+    *) set "Validation error ($1): $2" "$@"
+  esac
+  option_error "$@" >&2 || exit $?
+  echo "$1" >&2
+  exit 1
+}
+usage_contact() {
+cat<<'GETOPTIONSHERE'
+Usage:
+  opensearch contact [OPTION]... NAME[,NAME]...
+  opensearch contact [OPTION]... OPENSEARCH_FILE
+
+Options:
+  -e,     --{no-}extarnal[=COMMAND] 
+                              外部プログラムを起動する
+  -h,     --help              このヘルプを表示して終了する
+GETOPTIONSHERE
+}
+# Generated by getoptions (END)
+# @end
+
+	parse_contact ${@+"${@}"}
+	eval "set -- ${REST}"
+
+	argument_count_check "${#}" '1' '1'
+	argument_check 'xmlFiles' ${@+"${@}"}
+
+	eval "set -- ${xmlFiles}"
+
+	for xmlFile in ${@+"${@}"}; do
+		if email="$(opensearch_select -v 'normalize-space(os:Contact)' "${xmlFile}")"; then :; else
+			printf "'%s' に連絡先が存在しません。\\n" "${xmlFile}" >&2
+
+			end_call "${EX_DATAERR}"
+		fi
+
+		append_array_posix 'emails' "${email}"
+	done
+
+	case "${extarnal}" in
+		'echo') eval 'printf "%s\\n"' "${emails}";;
+		*) LC_ALL="${ORIGINAL_LC_ALL}" eval 'sh -c "${extarnal} \${@+\"\${@}\"}" sh' "${emails}";;
+	esac
+}
+
+opensearch_file_show() {
+	if [ '!' -e "${OPENSEARCH_PLAINTEXT_XSLT}" ]; then
+		cat <<-'__EOF__' >"${OPENSEARCH_PLAINTEXT_XSLT}"
+		<?xml version="1.0" encoding="UTF-8"?>
+		<xsl:stylesheet
+			version="1.0"
+			xmlns:os="http://a9.com/-/spec/opensearch/1.1/"
+			xmlns:xhtml="http://www.w3.org/1999/xhtml"
+			xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+		>
+			<xsl:output method="text" encoding="UTF-8" media-type="text/plain"/>
+
+			<xsl:param name="match"/>
+
+			<xsl:variable name="self" select="document('')/xsl:stylesheet"/>
+			<xsl:variable name="list" select="$self/xhtml:ol"/>
+
+			<xhtml:ol id="OpenSearchDescription">
+				<xhtml:li>ShortName</xhtml:li>
+				<xhtml:li>Description</xhtml:li>
+				<xhtml:li>Url</xhtml:li>
+				<xhtml:li>Contact</xhtml:li>
+				<xhtml:li>Tags</xhtml:li>
+				<xhtml:li>LongName</xhtml:li>
+				<xhtml:li>Image</xhtml:li>
+				<xhtml:li>Query</xhtml:li>
+				<xhtml:li>Developer</xhtml:li>
+				<xhtml:li>Attribution</xhtml:li>
+				<xhtml:li>SyndicationRight</xhtml:li>
+				<xhtml:li>AdultContent</xhtml:li>
+				<xhtml:li>Language</xhtml:li>
+				<xhtml:li>InputEncoding</xhtml:li>
+				<xhtml:li>OutputEncoding</xhtml:li>
+			</xhtml:ol>
+
+			<xhtml:ol id="Url">
+				<xhtml:li>template</xhtml:li>
+				<xhtml:li>type</xhtml:li>
+				<xhtml:li>rel</xhtml:li>
+				<xhtml:li>indexOffset</xhtml:li>
+				<xhtml:li>pageOffset</xhtml:li>
+			</xhtml:ol>
+
+			<xhtml:ol id="Query">
+				<xhtml:li>role</xhtml:li>
+				<xhtml:li>title</xhtml:li>
+				<xhtml:li>totalResults</xhtml:li>
+				<xhtml:li>searchTerms</xhtml:li>
+				<xhtml:li>startIndex</xhtml:li>
+				<xhtml:li>startPage</xhtml:li>
+				<xhtml:li>language</xhtml:li>
+				<xhtml:li>inputEncoding</xhtml:li>
+				<xhtml:li>outputEncoding</xhtml:li>
+			</xhtml:ol>
+
+			<xhtml:ol id="Image">
+				<xhtml:li>width</xhtml:li>
+				<xhtml:li>height</xhtml:li>
+				<xhtml:li>type</xhtml:li>
+			</xhtml:ol>
+
+			<xsl:template match="/os:OpenSearchDescription">
+				<xsl:apply-templates select="$list[@id = 'OpenSearchDescription']/xhtml:li">
+					<xsl:with-param name="current" select="os:*"/>
+					<xsl:with-param name="match" select="$match"/>
+				</xsl:apply-templates>
+			</xsl:template>
+
+			<xsl:template match="
+				os:ShortName | os:Description | os:Contact | os:Tags | os:LongName
+				| os:Developer | os:Attribution | os:SyndicationRight | os:AdultContent
+				| @template | @type | @rel | @indexOffset | @pageOffset
+				| @role | @title | @totalResults | @searchTerms | @startIndex
+				| @startPage | @language | @inputEncoding | @outputEncoding
+				| @width | @height | @type
+			">
+				<xsl:value-of select="concat(' ', normalize-space(), '&#xA;')"/>
+			</xsl:template>
+
+			<xsl:template match="os:Url | os:Query">
+				<xsl:if test="position() = 1">
+					<xsl:text>&#xA;</xsl:text>
+				</xsl:if>
+
+				<xsl:apply-templates select="$list[@id = local-name(current())]/xhtml:li">
+					<xsl:with-param name="current" select="@*"/>
+					<xsl:with-param name="first" select="'  - '"/>
+					<xsl:with-param name="indent" select="'    '"/>
+				</xsl:apply-templates>
+			</xsl:template>
+
+			<xsl:template match="os:Image">
+				<xsl:if test="position() = 1">
+					<xsl:text>&#xA;</xsl:text>
+				</xsl:if>
+
+				<xsl:value-of select="concat('  - url: ', ., '&#xA;')"/>
+
+				<xsl:apply-templates select="$list[@id = 'Image']/xhtml:li">
+					<xsl:with-param name="current" select="@*"/>
+					<xsl:with-param name="indent" select="'    '"/>
+				</xsl:apply-templates>
+			</xsl:template>
+
+			<xsl:template match="os:Language | os:InputEncoding | os:OutputEncoding">
+				<xsl:if test="position() = 1">
+					<xsl:text> </xsl:text>
+				</xsl:if>
+
+				<xsl:value-of select="normalize-space()"/>
+
+				<xsl:choose>
+					<xsl:when test="position() = last()">
+						<xsl:text>&#xA;</xsl:text>
+					</xsl:when>
+					<xsl:otherwise>, </xsl:otherwise>
+				</xsl:choose>
+			</xsl:template>
+
+			<xsl:template match="xhtml:li">
+				<xsl:param name="current" select="."/>
+				<xsl:param name="first" select="false()"/>
+				<xsl:param name="indent"/>
+				<xsl:param name="match"/>
+
+				<xsl:if test="(not($match) or $match = .) and $current[local-name() = current()]">
+					<xsl:choose>
+						<xsl:when test="$first and position() = 1">
+							<xsl:value-of select="concat($first, ., ':')"/>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:value-of select="concat($indent, ., ':')"/>
+						</xsl:otherwise>
+					</xsl:choose>
+
+					<xsl:apply-templates select="$current[local-name() = current()]"/>
+				</xsl:if>
+			</xsl:template>
+		</xsl:stylesheet>
+		__EOF__
+	fi
+
+	xml transform "${OPENSEARCH_PLAINTEXT_XSLT}" ${@+"${@}"}
+}
+
+opensearch_file_check() {
+	if [ '!' -e "${OPENSEARCH_RELAXNG_SCHEMA}" ]; then
+		cat <<-'__EOF__' >"${OPENSEARCH_RELAXNG_SCHEMA}"
+		<?xml version="1.0" encoding="UTF-8"?>
+		<grammar
+			xmlns="http://relaxng.org/ns/structure/1.0"
+			xmlns:a="http://relaxng.org/ns/annotation/0.9"
+			ns="http://a9.com/-/spec/opensearch/1.1/"
+			datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
+		>
+			<!-- see: https://github.com/dewitt/opensearch/blob/master/opensearch-1-1-draft-6.md -->
+			<a:documentation xml:lang="en">
+				This document defines the OpenSearch description document, the OpenSearch Query element, the OpenSearch URL template syntax, and the OpenSearch response elements. Collectively these formats may be referred to as "OpenSearch 1.1" or simply "OpenSearch".
+
+				Search clients can use OpenSearch description documents to learn about the public interface of a search engine. These description documents contain parameterized URL templates that indicate how the search client should make search requests. Search engines can use the OpenSearch response elements to add search metadata to results in a variety of content formats.
+			</a:documentation>
+
+			<start>
+				<a:documentation xml:lang="en">
+					An OpenSearch description document can be used to describe the web interface of a search engine.
+				</a:documentation>
+				<ref name="opensearch.element.OpenSearchDescription"/>
+			</start>
+
+			<define name="opensearch.element.OpenSearchDescription">
+				<element name="OpenSearchDescription">
+					<a:documentation xml:lang="en">
+						The root node of the OpenSearch description document.
+					</a:documentation>
+					<interleave>
+						<ref name="opensearch.element.ShortName"/>
+						<ref name="opensearch.element.Description"/>
+						<oneOrMore>
+							<ref name="opensearch.element.Url"/>
+						</oneOrMore>
+						<optional>
+							<ref name="opensearch.element.Contact"/>
+						</optional>
+						<optional>
+							<ref name="opensearch.element.Tags"/>
+						</optional>
+						<optional>
+							<ref name="opensearch.element.LongName"/>
+						</optional>
+						<optional>
+							<ref name="opensearch.element.Developer"/>
+						</optional>
+						<optional>
+							<ref name="opensearch.element.Attribution"/>
+						</optional>
+						<optional>
+							<ref name="opensearch.element.SyndicationRight"/>
+						</optional>
+						<optional>
+							<ref name="opensearch.element.AdultContent"/>
+						</optional>
+						<zeroOrMore>
+							<choice>
+								<ref name="opensearch.element.Image"/>
+								<ref name="opensearch.element.Query"/>
+								<ref name="opensearch.element.Language"/>
+								<ref name="opensearch.element.InputEncoding"/>
+								<ref name="opensearch.element.OutputEncoding"/>
+							</choice>
+						</zeroOrMore>
+						<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+						<ref name="opensearch.content.exceptOpenSearchElement"/>
+					</interleave>
+				</element>
+			</define>
+
+			<define name="opensearch.element.ShortName">
+				<element name="ShortName">
+					<a:documentation xml:lang="en">
+						Contains a brief human-readable title that identifies this search engine.
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<data type="string">
+						<a:documentation xml:lang="en">
+							The value must contain 16 or fewer characters of plain text. The value must not contain HTML or other markup.
+						</a:documentation>
+						<param name="maxLength">16</param>
+					</data>
+				</element>
+			</define>
+
+			<define name="opensearch.element.Description">
+				<element name="Description">
+					<a:documentation xml:lang="en">
+						Contains a human-readable text description of the search engine.
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<data type="string">
+						<a:documentation xml:lang="en">
+							The value must contain 1024 or fewer characters of plain text. The value must not contain HTML or other markup.
+						</a:documentation>
+						<param name="maxLength">1024</param>
+					</data>
+				</element>
+			</define>
+
+			<define name="opensearch.element.Url">
+				<element name="Url">
+					<a:documentation xml:lang="en">
+						Describes an interface by which a client can make requests for an external resource, such as search results, search suggestions, or additional description documents.
+					</a:documentation>
+					<ref name="opensearch.attribute.template"/>
+					<ref name="opensearch.attribute.type"/>
+					<zeroOrMore>
+						<choice>
+							<ref name="opensearch.attribute.rel"/>
+							<ref name="opensearch.attribute.indexOffset"/>
+							<ref name="opensearch.attribute.pageOffset"/>
+						</choice>
+					</zeroOrMore>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<ref name="opensearch.content.exceptOpenSearchElement"/>
+				</element>
+			</define>
+
+			<define name="opensearch.element.Contact">
+				<element name="Contact">
+					<a:documentation xml:lang="en">
+						Contains an email address at which the maintainer of the description document can be reached.
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<data type="token">
+						<a:documentation xml:lang="en">
+							The value must conform to the requirements of Section 3.4.1 "Addr-spec specification" in RFC 2822.
+						</a:documentation>
+						<!-- see: http://www.din.or.jp/~ohzaki/mail_regex.htm#Simplify -->
+						<param name="pattern">([!#-'*+/-9=?A-Z\^_-~-]+(\.[!#-'*+/-9=?A-Z\^_-~-]+)*|"([!#-Z\[\]\^_-~]|\\[\t -~])*")@[!#-'*+/-9=?A-Z\^_-~-]+(\.[!#-'*+/-9=?A-Z\^_-~-]+)*</param>
+						<param name="maxLength">254</param>
+					</data>
+				</element>
+			</define>
+
+			<define name="opensearch.element.Tags">
+				<element name="Tags">
+					<a:documentation xml:lang="en">
+						Contains a set of words that are used as keywords to identify and categorize this search content. Tags must be a single word and are delimited by the space character (' ').
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<data type="token">
+						<a:documentation xml:lang="en">
+							The value must contain 256 or fewer characters of plain text. The value must not contain HTML or other markup.
+						</a:documentation>
+						<param name="maxLength">256</param>
+					</data>
+				</element>
+			</define>
+
+			<define name="opensearch.element.LongName">
+				<element name="LongName">
+					<a:documentation xml:lang="en">
+						Contains an extended human-readable title that identifies this search engine.
+
+						Search clients should use the value of the ShortName element if this element is not available.			</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<data type="string">
+						<a:documentation xml:lang="en">
+							The value must contain 48 or fewer characters of plain text. The value must not contain HTML or other markup.
+						</a:documentation>
+						<param name="maxLength">48</param>
+					</data>
+				</element>
+			</define>
+
+			<define name="opensearch.element.Image">
+				<element name="Image">
+					<a:documentation xml:lang="en">
+						Contains a URL that identifies the location of an image that can be used in association with this search content.
+
+						Image sizes are offered as a hint to the search client. The search client will choose the most appropriate image for the available space and should give preference to those listed first in the OpenSearch description document. Square aspect ratios are recommended. When possible, search engines should offer a 16x16 image of type "image/x-icon" or "image/vnd.microsoft.icon" (the Microsoft ICO format) and a 64x64 image of type "image/jpeg" or "image/png".
+					</a:documentation>
+					<zeroOrMore>
+						<choice>
+							<ref name="opensearch.attribute.height"/>
+							<ref name="opensearch.attribute.width"/>
+							<ref name="opensearch.attribute.type"/>
+						</choice>
+					</zeroOrMore>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<data type="anyURI">
+						<a:documentation xml:lang="en">
+							The value must be a URI.
+						</a:documentation>
+					</data>
+				</element>
+			</define>
+
+			<define name="opensearch.element.Query">
+				<element name="Query">
+					<a:documentation xml:lang="en">
+						Defines a search query that can be performed by search clients. Please see the OpenSearch Query element specification for more information.
+
+						OpenSearch description documents should include at least one Query element of role="example" that is expected to return search results. Search clients may use this example query to validate that the search engine is working properly.
+					</a:documentation>
+					<ref name="opensearch.attribute.role"/>
+					<zeroOrMore>
+						<choice>
+							<ref name="opensearch.attribute.title"/>
+							<ref name="opensearch.attribute.totalResults"/>
+							<ref name="opensearch.attribute.searchTerms"/>
+							<ref name="opensearch.attribute.count"/>
+							<ref name="opensearch.attribute.startIndex"/>
+							<ref name="opensearch.attribute.startPage"/>
+							<ref name="opensearch.attribute.language"/>
+							<ref name="opensearch.attribute.inputEncoding"/>
+							<ref name="opensearch.attribute.outputEncoding"/>
+						</choice>
+					</zeroOrMore>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<ref name="opensearch.content.exceptOpenSearchElement"/>
+				</element>
+			</define>
+
+			<define name="opensearch.element.Developer">
+				<element name="Developer">
+					<a:documentation xml:lang="en">
+						Contains the human-readable name or identifier of the creator or maintainer of the description document.
+
+						The developer is the person or entity that created the description document, and may or may not be the owner, author, or copyright holder of the source of the content itself.
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<data type="string">
+						<a:documentation xml:lang="en">
+							The value must contain 64 or fewer characters of plain text. The value must not contain HTML or other markup.
+						</a:documentation>
+						<param name="maxLength">64</param>
+					</data>
+				</element>
+			</define>
+
+			<define name="opensearch.element.Attribution">
+				<element name="Attribution">
+					<a:documentation xml:lang="en">
+						Contains a list of all sources or entities that should be credited for the content contained in the search feed.
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<data type="string">
+						<a:documentation xml:lang="en">
+							The value must contain 256 or fewer characters of plain text. The value must not contain HTML or other markup.
+						</a:documentation>
+						<param name="maxLength">256</param>
+					</data>
+				</element>
+			</define>
+
+			<define name="opensearch.element.SyndicationRight">
+				<element name="SyndicationRight">
+					<a:documentation xml:lang="en">
+						Contains a value that indicates the degree to which the search results provided by this search engine can be queried, displayed, and redistributed.
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<choice>
+						<a:documentation xml:lang="en">
+							The value must be one of the following strings (case insensitive):
+						</a:documentation>
+						<data type="token">
+							<param name="pattern">[Oo][Pp][Ee][Nn]</param>
+						</data>
+						<data type="token">
+							<param name="pattern">[Ll][Ii][Mm][Ii][Tt][Ee][Dd]</param>
+						</data>
+						<data type="token">
+							<param name="pattern">[Pp][Rr][Ii][Vv][Aa][Tt][Ee]</param>
+						</data>
+						<data type="token">
+							<param name="pattern">[Cc][Ll][Oo][Ss][Ee][Dd]</param>
+						</data>
+					</choice>
+				</element>
+			</define>
+
+			<define name="opensearch.element.AdultContent">
+				<element name="AdultContent">
+					<a:documentation xml:lang="en">
+						Contains a boolean value that should be set to true if the search results may contain material intended only for adults.
+
+						As there are no universally applicable guidelines as to what constitutes "adult" content, the search engine should make a good faith effort to indicate when there is a possibility that search results may contain material inappropriate for all audiences.
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<data type="string">
+						<a:documentation xml:lang="en">
+							The values "false", "FALSE", "0", "no", and "NO" will be considered boolean FALSE; all other strings will be considered boolean TRUE.
+						</a:documentation>
+					</data>
+				</element>
+			</define>
+
+			<define name="opensearch.element.Language">
+				<element name="Language">
+					<a:documentation xml:lang="en">
+						Contains a string that indicates that the search engine supports search results in the specified language
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<ref name="opensearch.datatype.language"/>
+				</element>
+			</define>
+
+			<define name="opensearch.element.InputEncoding">
+				<element name="InputEncoding">
+					<a:documentation xml:lang="en">
+						Contains a string that indicates that the search engine supports search requests encoded with the specified character encoding.
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<ref name="opensearch.datatype.encoding"/>
+				</element>
+			</define>
+
+			<define name="opensearch.element.OutputEncoding">
+				<element name="OutputEncoding">
+					<a:documentation xml:lang="en">
+						Contains a string that indicates that the search engine supports search responses encoded with the specified character encoding.
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<ref name="opensearch.datatype.encoding"/>
+				</element>
+			</define>
+
+			<define name="opensearch.element.totalResults">
+				<element name="totalResults">
+					<a:documentation xml:lang="en">
+						The number of search results available for the current search.
+
+						If the totalResults element does not appear on the page then the search client should consider the current page to be the last page of search results.
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<data type="nonNegativeInteger">
+						<a:documentation xml:lang="en">
+							The value must be a non-negative integer.
+						</a:documentation>
+					</data>
+				</element>
+			</define>
+
+			<define name="opensearch.element.startIndex">
+				<element name="startIndex">
+					<a:documentation xml:lang="en">
+						The index of the first search result in the current set of search results.
+
+						If the startIndex element does not appear on the page then the search client should consider the current page to be the first page of search results.
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<data type="integer">
+						<a:documentation xml:lang="en">
+							The value must an integer.
+						</a:documentation>
+					</data>
+				</element>
+			</define>
+
+			<define name="opensearch.element.itemsPerPage">
+				<element name="itemsPerPage">
+					<a:documentation xml:lang="en">
+						The number of search results returned per page.
+
+						If the itemsPerPage element does not appear on the page then the search client should use the number of items of the current page as the default page size.
+					</a:documentation>
+					<ref name="opensearch.content.exceptOpenSearchAttribute"/>
+					<data type="integer">
+						<a:documentation xml:lang="en">
+							The value must a non-negative integer.
+						</a:documentation>
+					</data>
+				</element>
+			</define>
+
+			<define name="opensearch.element.any">
+				<element>
+					<anyName/>
+					<ref name="opensearch.content.any"/>
+				</element>
+			</define>
+
+			<define name="opensearch.attribute.template">
+				<attribute name="template">
+					<a:documentation xml:lang="en">
+						The URL template to be processed according to the OpenSearch URL template syntax.
+					</a:documentation>
+					<data type="token">
+						<param name="pattern">([A-Za-z]|\{([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*\??\})([A-Za-z0-9+.-]|\{([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*\??\})*:(//(([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2}|\{([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*\??\})*@)?(\[(((([0-9A-F]{1,4}:){6}|::([0-9A-F]{1,4}:){5}|([0-9A-F]{1,4})?::([0-9A-F]{1,4}:){4}|(([0-9A-F]{1,4}:){0,1}[0-9A-F]{1,4})?::([0-9A-F]{1,4}:){3}|(([0-9A-F]{1,4}:){0,2}[0-9A-F]{1,4})?::([0-9A-F]{1,4}:){2}|(([0-9A-F]{1,4}:){0,3}[0-9A-F]{1,4})?::[0-9A-F]{1,4}:|(([0-9A-F]{1,4}:){0,4}[0-9A-F]{1,4})?::)([0-9A-F]{1,4}:[0-9A-F]{1,4}|(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(([0-9A-F]{1,4}:){0,5}[0-9A-F]{1,4})?::[0-9A-F]{1,4}|(([0-9A-F]{1,4}:){0,6}[0-9A-F]{1,4})?::)|v[0-9A-F]+\.[!$&amp;-.0-;=A-Z_a-z~]+)\]|([A-Za-z0-9._~!$&amp;'()*+,;=-]|%[0-9A-Fa-f]{2}|\{([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*\??\})*)(:([0-9]|\{([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*\??\})*)?(/([!$&amp;-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2}|\{([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*\??\})*)*|/(([!$&amp;-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2}|\{([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*\??\})+(/([!$&amp;-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2}|\{([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*\??\})*)*)?|([!$&amp;-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2}|\{([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*\??\})+(/([!$&amp;-.0-;=@-Z_a-z~]|%[0-9A-Fa-f]{2}|\{([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*\??\})*)*|)(\?([!$&amp;-;=?-Z_a-z~]|%[0-9A-Fa-f]{2}|\{([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*\??\})*)?(#([!$&amp;-;=?-Z_a-z~]|%[0-9A-Fa-f]{2}|\{([!$&amp;-.0-;=A-Z_a-z~]|%[0-9A-Fa-f]{2})*\??\})*)?</param>
+					</data>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.type">
+				<attribute name="type">
+					<a:documentation xml:lang="en">
+						The MIME type of the resource being described.
+					</a:documentation>
+					<data type="token">
+						<!-- see: https://stackoverflow.com/a/48046041 -->
+						<param name="pattern">(application|audio|font|example|image|message|model|multipart|text|video|x-[!#-'*+.0-9A-Z\^_-z|~-]+)/[!#-'*+.0-9A-Z\^_-z|~-]+([\t ]*;[\t ]*[!#-'*+.0-9A-Z\^_-z|~-]+=([!#-'*+.0-9A-Z\^_-z|~-]+|"([\t !#-Z\[\]\^_-~]|\\[\t -~])*"))*</param>
+					</data>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.rel">
+				<attribute name="rel" a:defaultValue="results">
+					<a:documentation xml:lang="en">
+						The role of the resource being described in relation to the description document.
+					</a:documentation>
+					<list>
+						<oneOrMore>
+							<choice>
+								<data type="NCName">
+									<param name="pattern">[a-z][a-z\-]+</param>
+								</data>
+								<data type="anyURI">
+									<param name="pattern">[A-Za-z][A-Za-z0-9+.-]*:.*</param>
+								</data>
+							</choice>
+						</oneOrMore>
+					</list>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.indexOffset">
+				<attribute name="indexOffset" a:defaultValue="1">
+					<a:documentation xml:lang="en">
+						The index number of the first search result.
+					</a:documentation>
+					<data type="integer"/>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.pageOffset">
+				<attribute name="pageOffset" a:defaultValue="1">
+					<a:documentation xml:lang="en">
+						The page number of the first set of search results.
+					</a:documentation>
+					<data type="integer"/>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.height">
+				<attribute name="height">
+					<a:documentation xml:lang="en">
+						Contains the height, in pixels, of this image.
+					</a:documentation>
+					<data type="nonNegativeInteger"/>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.width">
+				<attribute name="width">
+					<a:documentation xml:lang="en">
+						Contains the width, in pixels, of this image.
+					</a:documentation>
+					<data type="nonNegativeInteger"/>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.role">
+				<attribute name="role">
+					<a:documentation xml:lang="en">
+						Contains a string identifying how the search client should interpret the search request defined by this Query element.
+					</a:documentation>
+					<choice>
+						<a:documentation xml:lang="en">
+							A role value consists of an optional prefix followed by the local role value. If the prefix is present it will be separated from the local role value with the ":" character. All role values are associated with a namespace, either implicitly in the case of local role values, or explicitly via a prefix in the case of fully qualified role values.
+						</a:documentation>
+						<div>
+							<a:documentation xml:lang="en">
+								Local role values are not preceded by a prefix. Local role values are associated with the OpenSearch 1.1 namespace.
+
+								The following role values are identified with the OpenSearch 1.1 namespace. The list is exhaustive; only the role values listed below may appear in the OpenSearch 1.1 namespace.
+							</a:documentation>
+							<value>request</value>
+							<value>example</value>
+							<value>related</value>
+							<value>correction</value>
+							<value>subset</value>
+							<value>superset</value>
+						</div>
+						<data type="QName">
+							<a:documentation xml:lang="en">
+								Fully qualified role values are preceded by a prefix. Fully qualified role values are associated with the namespace identified by the prefix on the containing Query element or ancestor elements.
+							</a:documentation>
+							<param name="pattern">.*:.*</param>
+						</data>
+					</choice>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.title">
+				<attribute name="title">
+					<a:documentation xml:lang="en">
+						Contains a human-readable plain text string describing the search request.
+					</a:documentation>
+					<data type="string">
+						<param name="maxLength">256</param>
+					</data>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.totalResults">
+				<attribute name="totalResults">
+					<a:documentation xml:lang="en">
+						Contains the expected number of results to be found if the search request were made.
+					</a:documentation>
+					<data type="nonNegativeInteger"/>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.searchTerms">
+				<attribute name="searchTerms">
+					<a:documentation xml:lang="en">
+						Contains the value representing the searchTerms as a OpenSearch 1.1 parameter names.
+					</a:documentation>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.count">
+				<attribute name="count">
+					<a:documentation xml:lang="en">
+						Contains the value representing the count as a OpenSearch 1.1 parameter names.
+					</a:documentation>
+					<data type="nonNegativeInteger"/>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.startIndex">
+				<attribute name="startIndex">
+					<a:documentation xml:lang="en">
+						Contains the value representing the startIndex as an OpenSearch 1.1 parameter names.
+					</a:documentation>
+					<data type="integer"/>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.startPage">
+				<attribute name="startPage">
+					<a:documentation xml:lang="en">
+						Contains the value representing the startPage as an OpenSearch 1.1 parameter names.
+					</a:documentation>
+					<data type="integer"/>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.language">
+				<attribute name="language">
+					<a:documentation xml:lang="en">
+						Contains the value representing the language as an OpenSearch 1.1 parameter names.
+					</a:documentation>
+					<ref name="opensearch.datatype.language"/>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.inputEncoding">
+				<attribute name="inputEncoding">
+					<a:documentation xml:lang="en">
+						Contains the value representing the inputEncoding as an OpenSearch 1.1 parameter names.
+					</a:documentation>
+					<ref name="opensearch.datatype.encoding"/>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.outputEncoding">
+				<attribute name="outputEncoding">
+					<a:documentation xml:lang="en">
+						Contains the value representing the outputEncoding as an OpenSearch 1.1 parameter names.
+					</a:documentation>
+					<ref name="opensearch.datatype.encoding"/>
+				</attribute>
+			</define>
+
+			<define name="opensearch.attribute.any">
+				<attribute>
+					<anyName/>
+				</attribute>
+			</define>
+
+			<define name="opensearch.datatype.language">
+				<choice>
+					<a:documentation xml:lang="en">
+						The value must conform to the XML 1.0 Language Identification, as specified by RFC 5646. In addition, the value of "*" will signify that the search engine does not restrict search results to any particular language.
+					</a:documentation>
+					<data type="language"/>
+					<value>*</value>
+				</choice>
+			</define>
+
+			<define name="opensearch.datatype.encoding">
+				<data type="token">
+					<a:documentation xml:lang="en">
+						The value must conform to the XML 1.0 Character Encodings, as specified by the IANA Character Set Assignments.
+					</a:documentation>
+					<!-- see: http://www.w3.org/TR/2004/REC-xml-20040204/#charencoding -->
+					<param name="pattern">[A-Za-z][A-Za-z0-9._-]*</param>
+				</data>
+			</define>
+
+			<define name="opensearch.content.response">
+				<a:documentation xml:lang="en">
+					The OpenSearch response elements can be used by search engines to augment existing XML formats with search-related metadata.
+
+					OpenSearch response elements are typically found augmenting search results returned in list-based XML syndication formats, such as RSS 2.0 and Atom 1.0, but may be used in other contexts without restriction.
+				</a:documentation>
+				<optional>
+					<ref name="opensearch.element.totalResults"/>
+				</optional>
+				<optional>
+					<ref name="opensearch.element.startIndex"/>
+				</optional>
+				<optional>
+					<ref name="opensearch.element.itemsPerPage"/>
+				</optional>
+			</define>
+
+			<define name="opensearch.content.exceptOpenSearchElement">
+				<zeroOrMore>
+					<element>
+						<anyName>
+							<except>
+								<nsName/>
+							</except>
+						</anyName>
+						<ref name="opensearch.content.any"/>
+					</element>
+				</zeroOrMore>
+			</define>
+
+			<define name="opensearch.content.exceptOpenSearchAttribute">
+				<zeroOrMore>
+					<attribute>
+						<anyName>
+							<except>
+								<nsName/>
+								<nsName ns=""/>
+							</except>
+						</anyName>
+					</attribute>
+				</zeroOrMore>
+			</define>
+
+			<define name="opensearch.content.any">
+				<zeroOrMore>
+					<choice>
+						<ref name="opensearch.attribute.any"/>
+						<ref name="opensearch.element.any"/>
+						<text/>
+					</choice>
+				</zeroOrMore>
+			</define>
+		</grammar>
+		__EOF__
+	fi
+
+	xml validate --relaxng "${OPENSEARCH_RELAXNG_SCHEMA}" ${@+"${@}"}
+}
+
+opensearch_normalize() {
+	if [ '!' -e "${OPENSEARCH_NORMALIZE_XSLT}" ]; then
+		cat <<-'__EOF__' >"${OPENSEARCH_NORMALIZE_XSLT}"
+		<?xml version="1.0" encoding="UTF-8"?>
+		<xsl:stylesheet
+			version="1.0"
+			xmlns="http://a9.com/-/spec/opensearch/1.1/"
+			xmlns:moz="http://www.mozilla.org/2006/browser/search/"
+			xmlns:os="http://a9.com/-/spec/opensearch/1.1/"
+			xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+			exclude-result-prefixes="os moz"
+		>
+			<xsl:output
+				method="xml" version="1.0" indent="no" encoding="UTF-8"
+				media-type="application/opensearchdescription+xml"
+				omit-xml-declaration="no"
+			/>
+
+			<xsl:strip-space elements="os:OpenSearchDescription"/>
+
+			<xsl:template match="os:OpenSearchDescription">
+				<xsl:copy>
+					<xsl:call-template name="namespace_copy"/>
+
+					<xsl:apply-templates select="node() | @*"/>
+
+					<xsl:if test="not(os:LongName)">
+						<LongName>
+							<xsl:value-of select="os:ShortName"/>
+						</LongName>
+					</xsl:if>
+
+					<xsl:if test="not(os:SyndicationRight)">
+						<SyndicationRight>open</SyndicationRight>
+					</xsl:if>
+
+					<xsl:if test="not(os:AdultContent)">
+						<AdultContent>false</AdultContent>
+					</xsl:if>
+
+					<xsl:if test="not(os:Language)">
+						<Language>*</Language>
+					</xsl:if>
+
+					<xsl:if test="not(os:InputEncoding)">
+						<InputEncoding>UTF-8</InputEncoding>
+					</xsl:if>
+
+					<xsl:if test="not(os:OutputEncoding)">
+						<OutputEncoding>UTF-8</OutputEncoding>
+					</xsl:if>
+				</xsl:copy>
+			</xsl:template>
+
+			<xsl:template match="os:Url">
+				<xsl:copy>
+					<xsl:call-template name="namespace_copy"/>
+					<xsl:apply-templates select="@*"/>
+
+					<xsl:if test="not(@rel)">
+						<xsl:attribute name="rel">results</xsl:attribute>
+					</xsl:if>
+
+					<xsl:if test="not(@indexOffset)">
+						<xsl:attribute name="indexOffset">1</xsl:attribute>
+					</xsl:if>
+
+					<xsl:if test="not(@pageOffset)">
+						<xsl:attribute name="pageOffset">1</xsl:attribute>
+					</xsl:if>
+				</xsl:copy>
+			</xsl:template>
+
+			<xsl:template match="
+				os:Contact | os:Tags | os:Image | os:Language
+				| os:InputEncoding | os:OutputEncoding | moz:SearchForm
+			">
+				<xsl:copy>
+					<xsl:call-template name="namespace_copy"/>
+					<xsl:apply-templates select="@*"/>
+
+					<xsl:value-of select="normalize-space()"/>
+				</xsl:copy>
+			</xsl:template>
+
+			<xsl:template match="os:SyndicationRight">
+				<xsl:copy>
+					<xsl:call-template name="namespace_copy"/>
+					<xsl:apply-templates select="@*"/>
+
+					<xsl:value-of select="translate(normalize-space(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"/>
+				</xsl:copy>
+			</xsl:template>
+
+			<xsl:template match="os:AdultContent">
+				<xsl:variable name="value" select="normalize-space()"/>
+
+				<xsl:copy>
+					<xsl:call-template name="namespace_copy"/>
+					<xsl:apply-templates select="@*"/>
+
+					<xsl:choose>
+						<xsl:when test="$value = 'false' or $value = 'FALSE' or $value = '0' or $value = 'no'  or $value = 'NO'">false</xsl:when>
+						<xsl:otherwise>
+							<xsl:value-of select="."/>
+						</xsl:otherwise>
+					</xsl:choose>
+				</xsl:copy>
+			</xsl:template>
+
+			<xsl:template match="os:*">
+				<xsl:copy>
+					<xsl:call-template name="namespace_copy"/>
+					<xsl:apply-templates select="@*"/>
+
+					<xsl:value-of select="."/>
+				</xsl:copy>
+			</xsl:template>
+
+			<xsl:template match="
+				os:Url/@indexOffset | os:Url/@pageOffset
+				| os:Image/@width | os:Image/@height
+				| os:Query/@count | os:Query/@startIndex | os:Query/@startPage
+			">
+				<xsl:attribute name="{name()}">
+					<xsl:value-of select="translate(normalize-space(), '+', '')"/>
+				</xsl:attribute>
+			</xsl:template>
+
+			<xsl:template match="os:*/@*[namespace-uri() = '']">
+				<xsl:attribute name="{name()}">
+					<xsl:value-of select="normalize-space()"/>
+				</xsl:attribute>
+			</xsl:template>
+
+			<xsl:template match="node() | @*">
+				<xsl:copy-of select="."/>
+			</xsl:template>
+
+			<xsl:template name="namespace_copy">
+				<xsl:for-each select="namespace::*">
+					<xsl:copy/>
+				</xsl:for-each>
+			</xsl:template>
+		</xsl:stylesheet>
+		__EOF__
+	fi
+
+	xml transform "${OPENSEARCH_NORMALIZE_XSLT}" ${@+"${@}"}
+}
+
+opensearch_search() {
+# @gengetoptions parser -i parser_definition_search parse_search "${1}"
+# Generated by getoptions (BEGIN)
+# URL: https://github.com/ko1nksm/getoptions (v3.3.0)
+extarnal='echo'
+parameters=''
+mimeType='text/html,application/xhtml+xml,application/atom+xml,application/rss+xml,application/xml,text/plain,text/*,*/*'
+REST=''
+parse_search() {
+  OPTIND=$(($#+1))
+  while OPTARG= && [ $# -gt 0 ]; do
+    set -- "${1%%\=*}" "${1#*\=}" "$@"
+    while [ ${#1} -gt 2 ]; do
+      case $1 in (*[!a-zA-Z0-9_-]*) break; esac
+      case '--extarnal' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --extarnal"
+      esac
+      case '--no-extarnal' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --no-extarnal"
+      esac
+      case '--template-parameter' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --template-parameter"
+      esac
+      case '--no-template-parameter' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --no-template-parameter"
+      esac
+      case '--accept-type' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --accept-type"
+      esac
+      case '--help' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --help"
+      esac
+      break
+    done
+    case ${OPTARG# } in
+      *\ *)
+        eval "set -- $OPTARG $1 $OPTARG"
+        OPTIND=$((($#+1)/2)) OPTARG=$1; shift
+        while [ $# -gt "$OPTIND" ]; do OPTARG="$OPTARG, $1"; shift; done
+        set "Ambiguous option: $1 (could be $OPTARG)" ambiguous "$@"
+        option_error "$@" >&2 || exit $?
+        echo "$1" >&2
+        exit 1 ;;
+      ?*)
+        [ "$2" = "$3" ] || OPTARG="$OPTARG=$2"
+        shift 3; eval 'set -- "${OPTARG# }"' ${1+'"$@"'}; OPTARG= ;;
+      *) shift 2
+    esac
+    case $1 in
+      --?*=*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%%\=*}" "${OPTARG#*\=}"' ${1+'"$@"'}
+        ;;
+      --no-*|--without-*) unset OPTARG ;;
+      -[ept]?*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%"${OPTARG#??}"}" "${OPTARG#??}"' ${1+'"$@"'}
+        ;;
+      -[h]?*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%"${OPTARG#??}"}" -"${OPTARG#??}"' ${1+'"$@"'}
+        OPTARG= ;;
+      +*) unset OPTARG ;;
+    esac
+    case $1 in
+      '-e'|'--extarnal'|'--no-extarnal')
+        set -- "$1" "$@"
+        [ ${OPTARG+x} ] && {
+          case $1 in --no-*|--without-*) set "noarg" "${1%%\=*}"; break; esac
+          [ "${OPTARG:-}" ] && { shift; OPTARG=$2; } || OPTARG='w3m'
+        } || OPTARG='echo'
+        extarnal="$OPTARG"
+        shift ;;
+      '-p'|'--template-parameter')
+        [ $# -le 1 ] && set "required" "$1" && break
+        OPTARG=$2
+        template_parameter_check "${OPTARG}" || { set -- template_parameter_check:$? "$1" template_parameter_check "${OPTARG}"; break; }
+        add_parameter "parameters" "${OPTARG}"
+        shift ;;
+      '--no-template-parameter')
+        [ "${OPTARG:-}" ] && OPTARG=${OPTARG#*\=} && set "noarg" "$1" && break
+        eval '[ ${OPTARG+x} ] &&:' && OPTARG='' || OPTARG=''
+        parameters="$OPTARG"
+        ;;
+      '-t'|'--accept-type')
+        [ $# -le 1 ] && set "required" "$1" && break
+        OPTARG=$2
+        regex_match "${OPTARG}" "^(application|audio|font|example|image|message|model|multipart|text|video|x-[!#-'*+.0-9A-Z^_-z|~-]+|\*)/[!#-'*+.0-9A-Z\^_-z|~-]+(,(application|audio|font|example|image|message|model|multipart|text|video|x-[!#-'*+.0-9A-Z^_-z|~-]+|\*)/[!#-'*+.0-9A-Z\^_-z|~-]+)*$" || { set -- regex_match:$? "$1" regex_match "${OPTARG}" "^(application|audio|font|example|image|message|model|multipart|text|video|x-[!#-'*+.0-9A-Z^_-z|~-]+|\*)/[!#-'*+.0-9A-Z\^_-z|~-]+(,(application|audio|font|example|image|message|model|multipart|text|video|x-[!#-'*+.0-9A-Z^_-z|~-]+|\*)/[!#-'*+.0-9A-Z\^_-z|~-]+)*$"; break; }
+        mimeType="$OPTARG"
+        shift ;;
+      '-h'|'--help')
+        usage_search
+        exit 0 ;;
+      --)
+        shift
+        while [ $# -gt 0 ]; do
+          REST="${REST} \"\${$(($OPTIND-$#))}\""
+          shift
+        done
+        break ;;
+      [-+]?*) set "unknown" "$1"; break ;;
+      *)
+        REST="${REST} \"\${$(($OPTIND-$#))}\""
+    esac
+    shift
+  done
+  [ $# -eq 0 ] && { OPTIND=1; unset OPTARG; return 0; }
+  case $1 in
+    unknown) set "Unrecognized option: $2" "$@" ;;
+    noarg) set "Does not allow an argument: $2" "$@" ;;
+    required) set "Requires an argument: $2" "$@" ;;
+    pattern:*) set "Does not match the pattern (${1#*:}): $2" "$@" ;;
+    notcmd) set "Not a command: $2" "$@" ;;
+    *) set "Validation error ($1): $2" "$@"
+  esac
+  option_error "$@" >&2 || exit $?
+  echo "$1" >&2
+  exit 1
+}
+usage_search() {
+cat<<'GETOPTIONSHERE'
+Usage:
+  opensearch search [OPTION]... NAME[,NAME]... [KEYWORD]...
+  opensearch search [OPTION]... OPENSEARCH_FILE [KEYWORD]...
+
+Options:
+  -e,     --{no-}extarnal[=COMMAND] 
+                              外部プログラムを起動する
+  -p,     --template-parameter [{NAMESPACE_URI}]NAME=[VALUE] 
+                              テンプレートパラメータを指定する
+          --no-template-parameter 
+                              -p, --template-parameter をリセットする
+  -t,     --accept-type MIME_TYPE[,MIME_TYPE]... 
+                              希望するリソースの MIME タイプを指定する
+  -h,     --help              このヘルプを表示して終了する
+GETOPTIONSHERE
+}
+# Generated by getoptions (END)
+# @end
+
+	parse_search ${@+"${@}"}
+	eval "set -- ${REST}"
+
+	argument_count_check "${#}" '1'
+	argument_check 'xmlFiles' ${@+"${@}"}
+	shift
+
+	argCount="${#}"
+
+	append_array_posix 'parameters' "{${OPENSEARCH_NS}}searchTerms" "${*}"
+
+	eval "set -- ${xmlFiles}"
+
+	for xmlFile in  ${@+"${@}"}; do
+		if [ "${argCount}" -eq '0' ] \
+			&& url=$(opensearch_normalize "${xmlFile}" | opensearch_select -v 'moz:SearchForm' -)
+		then :; else
+			url=$(
+				opensearch_normalize "${xmlFile}" \
+				| opensearch_url_element_to_tsv - 'results' \
+				| eval tsv_select_url \
+					'"${xmlFile}"' '"${mimeType}"' "${parameters}"
+			) || end_call "${?}"
+		fi
+
+		append_array_posix 'urls' "${url}"
+	done
+
+	case "${extarnal}" in
+		'echo') eval 'printf "%s\\n"' "${urls}";;
+		*) LC_ALL="${ORIGINAL_LC_ALL}" eval 'sh -c "${extarnal} \${@+\"\${@}\"}" sh' "${urls}";;
+	esac
+}
+
+opensearch_select() {
+	xml select \
+		-N "os=${OPENSEARCH_NS}" -N "moz=${MOZILLA_NS}" \
+		--template --match "os:OpenSearchDescription" ${@+"${@}"}
+}
+
+opensearch_show() {
+# @gengetoptions parser -i parser_definition_show parse_show "${1}"
+# Generated by getoptions (BEGIN)
+# URL: https://github.com/ko1nksm/getoptions (v3.3.0)
+format='text'
+indent='2'
+REST=''
+parse_show() {
+  OPTIND=$(($#+1))
+  while OPTARG= && [ $# -gt 0 ]; do
+    set -- "${1%%\=*}" "${1#*\=}" "$@"
+    while [ ${#1} -gt 2 ]; do
+      case $1 in (*[!a-zA-Z0-9_-]*) break; esac
+      case '--format' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --format"
+      esac
+      case '--indent-space' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --indent-space"
+      esac
+      case '--no-indent-space' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --no-indent-space"
+      esac
+      case '--help' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --help"
+      esac
+      break
+    done
+    case ${OPTARG# } in
+      *\ *)
+        eval "set -- $OPTARG $1 $OPTARG"
+        OPTIND=$((($#+1)/2)) OPTARG=$1; shift
+        while [ $# -gt "$OPTIND" ]; do OPTARG="$OPTARG, $1"; shift; done
+        set "Ambiguous option: $1 (could be $OPTARG)" ambiguous "$@"
+        option_error "$@" >&2 || exit $?
+        echo "$1" >&2
+        exit 1 ;;
+      ?*)
+        [ "$2" = "$3" ] || OPTARG="$OPTARG=$2"
+        shift 3; eval 'set -- "${OPTARG# }"' ${1+'"$@"'}; OPTARG= ;;
+      *) shift 2
+    esac
+    case $1 in
+      --?*=*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%%\=*}" "${OPTARG#*\=}"' ${1+'"$@"'}
+        ;;
+      --no-*|--without-*) unset OPTARG ;;
+      -[fs]?*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%"${OPTARG#??}"}" "${OPTARG#??}"' ${1+'"$@"'}
+        ;;
+      -[h]?*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%"${OPTARG#??}"}" -"${OPTARG#??}"' ${1+'"$@"'}
+        OPTARG= ;;
+      +*) unset OPTARG ;;
+    esac
+    case $1 in
+      '-f'|'--format')
+        [ $# -le 1 ] && set "required" "$1" && break
+        OPTARG=$2
+        case $OPTARG in text | xml | normalized-xml) ;;
+          *) set "pattern:text | xml | normalized-xml" "$1"; break
+        esac
+        format="$OPTARG"
+        shift ;;
+      '-s'|'--indent-space'|'--no-indent-space')
+        set -- "$1" "$@"
+        [ ${OPTARG+x} ] && {
+          case $1 in --no-*|--without-*) set "noarg" "${1%%\=*}"; break; esac
+          [ "${OPTARG:-}" ] && { shift; OPTARG=$2; } || OPTARG='2'
+        } || OPTARG='0'
+        regex_match "${OPTARG}" "^0$|^[1-9][0-9]*$" || { set -- regex_match:$? "$1" regex_match "${OPTARG}" "^0$|^[1-9][0-9]*$"; break; }
+        indent="$OPTARG"
+        shift ;;
+      '-h'|'--help')
+        usage_show
+        exit 0 ;;
+      --)
+        shift
+        while [ $# -gt 0 ]; do
+          REST="${REST} \"\${$(($OPTIND-$#))}\""
+          shift
+        done
+        break ;;
+      [-+]?*) set "unknown" "$1"; break ;;
+      *)
+        REST="${REST} \"\${$(($OPTIND-$#))}\""
+    esac
+    shift
+  done
+  [ $# -eq 0 ] && { OPTIND=1; unset OPTARG; return 0; }
+  case $1 in
+    unknown) set "Unrecognized option: $2" "$@" ;;
+    noarg) set "Does not allow an argument: $2" "$@" ;;
+    required) set "Requires an argument: $2" "$@" ;;
+    pattern:*) set "Does not match the pattern (${1#*:}): $2" "$@" ;;
+    notcmd) set "Not a command: $2" "$@" ;;
+    *) set "Validation error ($1): $2" "$@"
+  esac
+  option_error "$@" >&2 || exit $?
+  echo "$1" >&2
+  exit 1
+}
+usage_show() {
+cat<<'GETOPTIONSHERE'
+Usage:
+  opensearch show [OPTION]... NAME[,NAME]... [OPENSEARCH_ELEMENT]...
+  opensearch show [OPTION]... OPENSEARCH_FILE [OPENSEARCH_ELEMENT]...
+
+Options:
+  -f,     --format text | xml | normalized-xml 
+                              表示形式を指定する
+  -s,     --{no-}indent-space[=NUMBER] 
+                              インデントを行う
+  -h,     --help              このヘルプを表示して終了する
+GETOPTIONSHERE
+}
+# Generated by getoptions (END)
+# @end
+
+	parse_show ${@+"${@}"}
+	eval "set -- ${REST}"
+
+	argument_count_check "${#}" '1' '1'
+	argument_check 'xmlFiles' ${@+"${@}"}
+	shift
+
+	for element in ${@+"${@}"}; do
+		case "${element}" in
+			'ShortName' | 'Description' | 'Url' | 'Contact') ;;
+			'Tags' | 'LongName' | 'Image' | 'Query' | 'Developer') ;;
+			'Attribution' | 'SyndicationRight' | 'AdultContent') ;;
+			'Language' | 'InputEncoding' | 'OutputEncoding') ;;
+			*)
+				printf "%s: '%s' は OpenSearch の要素名ではありません。\\n" "${0##*/}" "${element}" >&2
+				printf "詳細については '%s' を実行してください。\\n" "${0##*/} --help" >&2
+
+				end_call "${EX_USAGE}"
+				;;
+		esac
+
+		append_array_posix 'elements' "${element}"
+	done
+
+	case "${indent}" in
+		'0') indent='--noindent';;
+		*) indent="--indent-spaces ${indent}"
+	esac
+
+	eval "set -- ${xmlFiles}"
+	xmlFileCount="${#}"
+
+	for xmlFile in ${@+"${@}"}; do
+		if [ '2' -le "${xmlFileCount}" ]; then
+			printf '=== %s ===\n' "${xmlFile}"
+		fi
+
+		eval "set -- ${elements-}"
+
+		case "${#}" in '0')
+			case "${format}" in
+				'text') opensearch_normalize "${xmlFile}" | opensearch_file_show -;;
+				'xml') xml format ${indent} "${xmlFile}";;
+				'normalized-xml') opensearch_normalize "${xmlFile}" | xml format ${indent} -;;
+			esac
+
+			continue
+			;;
+		esac
+
+		for element in ${@+"${@}"}; do
+			case "${format}" in
+				'text') opensearch_normalize "${xmlFile}" | opensearch_file_show -s "match=${element}" -;;
+				'xml') opensearch_select -c "os:${element}" "${xmlFile}";;
+				'normalized-xml') opensearch_normalize "${xmlFile}" | opensearch_select -c "os:${element}";;
+			esac
+		done
+	done
+}
+
+opensearch_update() {
+# @gengetoptions parser -i parser_definition_update parse_update "${1}"
+# Generated by getoptions (BEGIN)
+# URL: https://github.com/ko1nksm/getoptions (v3.3.0)
+parameters=''
+REST=''
+parse_update() {
+  OPTIND=$(($#+1))
+  while OPTARG= && [ $# -gt 0 ]; do
+    set -- "${1%%\=*}" "${1#*\=}" "$@"
+    while [ ${#1} -gt 2 ]; do
+      case $1 in (*[!a-zA-Z0-9_-]*) break; esac
+      case '--template-parameter' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --template-parameter"
+      esac
+      case '--no-template-parameter' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --no-template-parameter"
+      esac
+      case '--help' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --help"
+      esac
+      break
+    done
+    case ${OPTARG# } in
+      *\ *)
+        eval "set -- $OPTARG $1 $OPTARG"
+        OPTIND=$((($#+1)/2)) OPTARG=$1; shift
+        while [ $# -gt "$OPTIND" ]; do OPTARG="$OPTARG, $1"; shift; done
+        set "Ambiguous option: $1 (could be $OPTARG)" ambiguous "$@"
+        option_error "$@" >&2 || exit $?
+        echo "$1" >&2
+        exit 1 ;;
+      ?*)
+        [ "$2" = "$3" ] || OPTARG="$OPTARG=$2"
+        shift 3; eval 'set -- "${OPTARG# }"' ${1+'"$@"'}; OPTARG= ;;
+      *) shift 2
+    esac
+    case $1 in
+      --?*=*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%%\=*}" "${OPTARG#*\=}"' ${1+'"$@"'}
+        ;;
+      --no-*|--without-*) unset OPTARG ;;
+      -[p]?*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%"${OPTARG#??}"}" "${OPTARG#??}"' ${1+'"$@"'}
+        ;;
+      -[h]?*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%"${OPTARG#??}"}" -"${OPTARG#??}"' ${1+'"$@"'}
+        OPTARG= ;;
+      +*) unset OPTARG ;;
+    esac
+    case $1 in
+      '-p'|'--template-parameter')
+        [ $# -le 1 ] && set "required" "$1" && break
+        OPTARG=$2
+        template_parameter_check "${OPTARG}" || { set -- template_parameter_check:$? "$1" template_parameter_check "${OPTARG}"; break; }
+        add_parameter "parameters" "${OPTARG}"
+        shift ;;
+      '--no-template-parameter')
+        [ "${OPTARG:-}" ] && OPTARG=${OPTARG#*\=} && set "noarg" "$1" && break
+        eval '[ ${OPTARG+x} ] &&:' && OPTARG='' || OPTARG=''
+        parameters="$OPTARG"
+        ;;
+      '-h'|'--help')
+        usage_update
+        exit 0 ;;
+      --)
+        shift
+        while [ $# -gt 0 ]; do
+          REST="${REST} \"\${$(($OPTIND-$#))}\""
+          shift
+        done
+        break ;;
+      [-+]?*) set "unknown" "$1"; break ;;
+      *)
+        REST="${REST} \"\${$(($OPTIND-$#))}\""
+    esac
+    shift
+  done
+  [ $# -eq 0 ] && { OPTIND=1; unset OPTARG; return 0; }
+  case $1 in
+    unknown) set "Unrecognized option: $2" "$@" ;;
+    noarg) set "Does not allow an argument: $2" "$@" ;;
+    required) set "Requires an argument: $2" "$@" ;;
+    pattern:*) set "Does not match the pattern (${1#*:}): $2" "$@" ;;
+    notcmd) set "Not a command: $2" "$@" ;;
+    *) set "Validation error ($1): $2" "$@"
+  esac
+  option_error "$@" >&2 || exit $?
+  echo "$1" >&2
+  exit 1
+}
+usage_update() {
+cat<<'GETOPTIONSHERE'
+Usage:
+  opensearch update [OPTION]... NAME[,NAME]...
+  opensearch update [OPTION]... OPENSEARCH_FILE
+
+Options:
+  -p,     --template-parameter [{NAMESPACE_URI}]NAME=VALUE 
+                              テンプレートパラメータを指定する
+          --no-template-parameter 
+                              -p, --template-parameter をリセットする
+  -h,     --help              このヘルプを表示して終了する
+GETOPTIONSHERE
+}
+# Generated by getoptions (END)
+# @end
+
+	parse_update ${@+"${@}"}
+	eval "set -- ${REST}"
+
+	argument_count_check "${#}" '1' '1'
+	argument_check 'xmlFiles' ${@+"${@}"}
+
+	eval "set -- ${xmlFiles}"
+
+	for xmlFile in ${@+"${@}"}; do
+		index=$((${index:-0} + 1))
+		downloadFile="${tmpDir}/download${index}.xml"
+		url=$(
+			opensearch_normalize "${xmlFile}" \
+			| opensearch_url_element_to_tsv - 'self' \
+			| eval tsv_select_url \
+				'"${xmlFile}"' \
+				'"${OPENSEARCH_MIME_TYPE},application/xml"' \
+				"${parameters}"
+		) || end_call "${?}"
+
+		download "${downloadFile}" "${url}" "${OPENSEARCH_MIME_TYPE}, application/xml"
+
+		if opensearch_file_check --err --quiet "${downloadFile}"; then :; else
+			printf "%s: %s は OpenSearch description document ではありません。\\n" "${0##*/}" "${url}" >&2
+			printf "詳細については '%s' を実行してください。\\n" "${0##*/} --help" >&2
+
+			end_call "${EX_DATAERR}"
+		fi
+	done
+
+	unset 'index'
+
+	for xmlFile in ${@+"${@}"}; do
+		index=$((${index:-0} + 1))
+
+		cat -- "${tmpDir}/download${index}.xml" >"${xmlFile}"
+	done
+}
+
+opensearch_url_element_to_tsv() {
+	if [ '!' -e "${OPENSEARCH_URL_ELEMENT_TO_TSV_XSLT}" ]; then
+		cat <<-'__EOF__' >"${OPENSEARCH_URL_ELEMENT_TO_TSV_XSLT}"
+		<?xml version="1.0" encoding="UTF-8"?>
+		<xsl:stylesheet
+			version="1.0"
+			xmlns:os="http://a9.com/-/spec/opensearch/1.1/"
+			xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+		>
+			<xsl:output method="text" encoding="UTF-8" media-type="text/tab-separated-values"/>
+
+			<xsl:param name="rel">results</xsl:param>
+
+			<xsl:template match="/os:OpenSearchDescription">
+				<xsl:apply-templates select="os:Url"/>
+			</xsl:template>
+
+			<xsl:template match="os:Url">
+				<xsl:if test="contains(concat(' ', @rel, ' '), concat(' ', $rel, ' '))">
+					<xsl:value-of select="concat(@template, '&#x9;', @type, '&#x9;', @indexOffset, '&#x9;', @pageOffset, '&#x9;')"/>
+
+					<xsl:for-each select="namespace::*[string()]">
+						<xsl:if test="position() != 1">|</xsl:if>
+
+						<xsl:value-of select="concat(name(), '=', .)"/>
+					</xsl:for-each>
+
+					<xsl:text>&#xA;</xsl:text>
+				</xsl:if>
+			</xsl:template>
+		</xsl:stylesheet>
+		__EOF__
+	fi
+
+	xml transform "${OPENSEARCH_URL_ELEMENT_TO_TSV_XSLT}" -s "rel=${2:-results}" "${1}"
+}
+
+opensearch_validate() {
+# @gengetoptions parser -i parser_definition_validate parse_validate "${1}"
+# Generated by getoptions (BEGIN)
+# URL: https://github.com/ko1nksm/getoptions (v3.3.0)
+errorFlag=''
+quietFlag=''
+REST=''
+parse_validate() {
+  OPTIND=$(($#+1))
+  while OPTARG= && [ $# -gt 0 ]; do
+    set -- "${1%%\=*}" "${1#*\=}" "$@"
+    while [ ${#1} -gt 2 ]; do
+      case $1 in (*[!a-zA-Z0-9_-]*) break; esac
+      case '--error' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --error"
+      esac
+      case '--no-error' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --no-error"
+      esac
+      case '--quiet' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --quiet"
+      esac
+      case '--no-quiet' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --no-quiet"
+      esac
+      case '--help' in
+        "$1") OPTARG=; break ;;
+        $1*) OPTARG="$OPTARG --help"
+      esac
+      break
+    done
+    case ${OPTARG# } in
+      *\ *)
+        eval "set -- $OPTARG $1 $OPTARG"
+        OPTIND=$((($#+1)/2)) OPTARG=$1; shift
+        while [ $# -gt "$OPTIND" ]; do OPTARG="$OPTARG, $1"; shift; done
+        set "Ambiguous option: $1 (could be $OPTARG)" ambiguous "$@"
+        option_error "$@" >&2 || exit $?
+        echo "$1" >&2
+        exit 1 ;;
+      ?*)
+        [ "$2" = "$3" ] || OPTARG="$OPTARG=$2"
+        shift 3; eval 'set -- "${OPTARG# }"' ${1+'"$@"'}; OPTARG= ;;
+      *) shift 2
+    esac
+    case $1 in
+      --?*=*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%%\=*}" "${OPTARG#*\=}"' ${1+'"$@"'}
+        ;;
+      --no-*|--without-*) unset OPTARG ;;
+      -[eqh]?*) OPTARG=$1; shift
+        eval 'set -- "${OPTARG%"${OPTARG#??}"}" -"${OPTARG#??}"' ${1+'"$@"'}
+        OPTARG= ;;
+      +*) unset OPTARG ;;
+    esac
+    case $1 in
+      '-e'|'--error'|'--no-error')
+        [ "${OPTARG:-}" ] && OPTARG=${OPTARG#*\=} && set "noarg" "$1" && break
+        eval '[ ${OPTARG+x} ] &&:' && OPTARG='1' || OPTARG=''
+        errorFlag="$OPTARG"
+        ;;
+      '-q'|'--quiet'|'--no-quiet')
+        [ "${OPTARG:-}" ] && OPTARG=${OPTARG#*\=} && set "noarg" "$1" && break
+        eval '[ ${OPTARG+x} ] &&:' && OPTARG='1' || OPTARG=''
+        quietFlag="$OPTARG"
+        ;;
+      '-h'|'--help')
+        usage_validate
+        exit 0 ;;
+      --)
+        shift
+        while [ $# -gt 0 ]; do
+          REST="${REST} \"\${$(($OPTIND-$#))}\""
+          shift
+        done
+        break ;;
+      [-+]?*) set "unknown" "$1"; break ;;
+      *)
+        REST="${REST} \"\${$(($OPTIND-$#))}\""
+    esac
+    shift
+  done
+  [ $# -eq 0 ] && { OPTIND=1; unset OPTARG; return 0; }
+  case $1 in
+    unknown) set "Unrecognized option: $2" "$@" ;;
+    noarg) set "Does not allow an argument: $2" "$@" ;;
+    required) set "Requires an argument: $2" "$@" ;;
+    pattern:*) set "Does not match the pattern (${1#*:}): $2" "$@" ;;
+    notcmd) set "Not a command: $2" "$@" ;;
+    *) set "Validation error ($1): $2" "$@"
+  esac
+  option_error "$@" >&2 || exit $?
+  echo "$1" >&2
+  exit 1
+}
+usage_validate() {
+cat<<'GETOPTIONSHERE'
+Usage:
+  opensearch validate [OPTION]... NAME[,NAME]...
+  opensearch validate [OPTION]... OPENSEARCH_FILE
+
+Options:
+  -e,     --{no-}error        print verbose error messages on stderr
+  -q,     --{no-}quiet        do not list files (return result code only)
+  -h,     --help              このヘルプを表示して終了する
+GETOPTIONSHERE
+}
+# Generated by getoptions (END)
+# @end
+
+	parse_validate ${@+"${@}"}
+	eval "set -- ${REST}"
+
+	argument_count_check "${#}" '1' '1'
+	argument_to_filepath 'xmlFiles' "${1}"
+
+	eval "set -- ${xmlFiles}"
+
+	for xmlFile in ${@+"${@}"}; do
+		opensearch_file_check \
+			${errorFlag:+"--err"} ${quietFlag:+"--quiet"} "${xmlFile}" \
+		|| status="${EX_DATAERR}"
+	done
+
+	end_call "${status:-0}"
+}
+
+tsv_select_url() {
+	localAwkScript=$(
+		cat <<-'__EOF__'
+		### Function: sysexits
+		##
+		## sysexits の終了コードを返す。
+		##
+		## Parameters:
+		##
+		##   code - sysexits で定義された終了コード。
+		##
+		## Returns:
+		##
+		##   終了コードの番号。
+		##
+		## See Also:
+		##
+		##   * <sysexits(3) at https://www.freebsd.org/cgi/man.cgi?sektion=3&query=sysexits>
+
+		function sysexits(code) {
+			if(code == "EX_OK") {
+				return 0
+			} else if(code == "EX_USAGE") {
+				return 64
+			} else if(code == "EX_DATAERR") {
+				return 65
+			} else if(code == "EX_NOINPUT") {
+				return 66
+			} else if(code == "EX_NOUSER") {
+				return 67
+			} else if(code == "EX_NOHOST") {
+				return 68
+			} else if(code == "EX_UNAVAILABLE") {
+				return 69
+			} else if(code == "EX_SOFTWARE") {
+				return 70
+			} else if(code == "EX_OSERR") {
+				return 71
+			} else if(code == "EX_OSFILE") {
+				return 72
+			} else if(code == "EX_CANTCREAT") {
+				return 73
+			} else if(code == "EX_IOERR") {
+				return 74
+			} else if(code == "EX_TEMPFAIL") {
+				return 75
+			} else if(code == "EX_PROTOCOL") {
+				return 76
+			} else if(code == "EX_NOPERM") {
+				return 77
+			} else if(code == "EX_CONFIG") {
+				return 78
+			}
+
+			return 1
+		}
+
+		### Function: url_decode
+		##
+		## URL エンコードされた文字列をデコードする。
+		##
+		## Parameters:
+		##
+		##   string - デコードする文字列。
+		##   httpEncode - '+' をスペースにデコードする。
+		##
+		## Returns:
+		##
+		##   デコードされた文字列。
+
+		function url_decode(string, httpDecode,  p2c,result) {
+			split("", p2c)
+
+			p2c["00"] = "\000"; p2c["01"] = "\001";
+			p2c["02"] = "\002"; p2c["03"] = "\003";
+			p2c["04"] = "\004"; p2c["05"] = "\005";
+			p2c["06"] = "\006"; p2c["07"] = "\007";
+			p2c["08"] = "\010"; p2c["09"] = "\011";
+			p2c["0A"] = p2c["0a"] = "\012"; p2c["0B"] = p2c["0b"] = "\013";
+			p2c["0C"] = p2c["0c"] = "\014"; p2c["0D"] = p2c["0d"] = "\015";
+			p2c["0E"] = p2c["0e"] = "\016"; p2c["0F"] = p2c["0f"] = "\017";
+			p2c["10"] = "\020"; p2c["11"] = "\021";
+			p2c["12"] = "\022"; p2c["13"] = "\023";
+			p2c["14"] = "\024"; p2c["15"] = "\025";
+			p2c["16"] = "\026"; p2c["17"] = "\027";
+			p2c["18"] = "\030"; p2c["19"] = "\031";
+			p2c["1A"] = p2c["1a"] = "\032"; p2c["1B"] = p2c["1b"] = "\033";
+			p2c["1C"] = p2c["1c"] = "\034"; p2c["1D"] = p2c["1d"] = "\035";
+			p2c["1E"] = p2c["1e"] = "\036"; p2c["1F"] = p2c["1f"] = "\037";
+			p2c["20"] = "\040"; p2c["21"] = "\041";
+			p2c["22"] = "\042"; p2c["23"] = "\043";
+			p2c["24"] = "\044"; p2c["25"] = "\045";
+			p2c["26"] = "\046"; p2c["27"] = "\047";
+			p2c["28"] = "\050"; p2c["29"] = "\051";
+			p2c["2A"] = p2c["2a"] = "\052"; p2c["2B"] = p2c["2b"] = "\053";
+			p2c["2C"] = p2c["2c"] = "\054";	p2c["2D"] = p2c["2d"] = "\055";
+			p2c["2E"] = p2c["2e"] = "\056"; p2c["2F"] = p2c["2f"] = "\057";
+			p2c["30"] = "\060"; p2c["31"] = "\061";
+			p2c["32"] = "\062"; p2c["33"] = "\063";
+			p2c["34"] = "\064"; p2c["35"] = "\065";
+			p2c["36"] = "\066"; p2c["37"] = "\067";
+			p2c["38"] = "\070"; p2c["39"] = "\071";
+			p2c["3A"] = p2c["3a"] = "\072"; p2c["3B"] = p2c["3b"] = "\073";
+			p2c["3C"] = p2c["3c"] = "\074"; p2c["3D"] = p2c["3d"] = "\075";
+			p2c["3E"] = p2c["3e"] = "\076"; p2c["3F"] = p2c["3f"] = "\077";
+			p2c["40"] = "\100"; p2c["41"] = "\101";
+			p2c["42"] = "\102"; p2c["43"] = "\103";
+			p2c["44"] = "\104"; p2c["45"] = "\105";
+			p2c["46"] = "\106"; p2c["47"] = "\107";
+			p2c["48"] = "\110"; p2c["49"] = "\111";
+			p2c["4A"] = p2c["4a"] = "\112"; p2c["4B"] = p2c["4b"] = "\113";
+			p2c["4C"] = p2c["4c"] = "\114"; p2c["4D"] = p2c["4d"] = "\115";
+			p2c["4E"] = p2c["4e"] = "\116"; p2c["4F"] = p2c["4f"] = "\117";
+			p2c["50"] = "\120"; p2c["51"] = "\121";
+			p2c["52"] = "\122"; p2c["53"] = "\123";
+			p2c["54"] = "\124"; p2c["55"] = "\125";
+			p2c["56"] = "\126"; p2c["57"] = "\127";
+			p2c["58"] = "\130"; p2c["59"] = "\131";
+			p2c["5A"] = p2c["5a"] = "\132"; p2c["5B"] = p2c["5b"] = "\133";
+			p2c["5C"] = p2c["5c"] = "\134"; p2c["5D"] = p2c["5d"] = "\135";
+			p2c["5E"] = p2c["5e"] = "\136"; p2c["5F"] = p2c["5f"] = "\137";
+			p2c["60"] = "\140"; p2c["61"] = "\141";
+			p2c["62"] = "\142"; p2c["63"] = "\143";
+			p2c["64"] = "\144"; p2c["65"] = "\145";
+			p2c["66"] = "\146"; p2c["67"] = "\147";
+			p2c["68"] = "\150"; p2c["69"] = "\151";
+			p2c["6A"] = p2c["6a"] = "\152"; p2c["6B"] = p2c["6b"] = "\153";
+			p2c["6C"] = p2c["6c"] = "\154"; p2c["6D"] = p2c["6d"] = "\155";
+			p2c["6E"] = p2c["6e"] = "\156"; p2c["6F"] = p2c["6f"] = "\157";
+			p2c["70"] = "\160"; p2c["71"] = "\161";
+			p2c["72"] = "\162"; p2c["73"] = "\163";
+			p2c["74"] = "\164"; p2c["75"] = "\165";
+			p2c["76"] = "\166"; p2c["77"] = "\167";
+			p2c["78"] = "\170"; p2c["79"] = "\171";
+			p2c["7A"] = p2c["7a"] = "\172"; p2c["7B"] = p2c["7b"] = "\173";
+			p2c["7C"] = p2c["7c"] = "\174"; p2c["7D"] = p2c["7d"] = "\175";
+			p2c["7E"] = p2c["7e"] = "\176"; p2c["7F"] = p2c["7f"] = "\177";
+			p2c["80"] = "\200"; p2c["81"] = "\201";
+			p2c["82"] = "\202"; p2c["83"] = "\203";
+			p2c["84"] = "\204"; p2c["85"] = "\205";
+			p2c["86"] = "\206"; p2c["87"] = "\207";
+			p2c["88"] = "\210"; p2c["89"] = "\211";
+			p2c["8A"] = p2c["8a"] = "\212"; p2c["8B"] = p2c["8b"] = "\213";
+			p2c["8C"] = p2c["8c"] = "\214"; p2c["8D"] = p2c["8d"] = "\215";
+			p2c["8E"] = p2c["8e"] = "\216"; p2c["8F"] = p2c["8f"] = "\217";
+			p2c["90"] = "\220"; p2c["91"] = "\221";
+			p2c["92"] = "\222"; p2c["93"] = "\223";
+			p2c["94"] = "\224"; p2c["95"] = "\225";
+			p2c["96"] = "\226"; p2c["97"] = "\227";
+			p2c["98"] = "\230"; p2c["99"] = "\231";
+			p2c["9A"] = p2c["9a"] = "\232"; p2c["9B"] = p2c["9b"] = "\233";
+			p2c["9C"] = p2c["9c"] = "\234"; p2c["9D"] = p2c["9d"] = "\235";
+			p2c["9E"] = p2c["9e"] = "\236"; p2c["9F"] = p2c["9f"] = "\237";
+			p2c["A0"] = p2c["a0"] = "\240"; p2c["A1"] = p2c["a1"] = "\241";
+			p2c["A2"] = p2c["a2"] = "\242"; p2c["A3"] = p2c["a3"] = "\243";
+			p2c["A4"] = p2c["a4"] = "\244"; p2c["A5"] = p2c["a5"] = "\245";
+			p2c["A6"] = p2c["a6"] = "\246"; p2c["A7"] = p2c["a7"] = "\247";
+			p2c["A8"] = p2c["a8"] = "\250"; p2c["A9"] = p2c["a9"] = "\251";
+			p2c["AA"] = p2c["aA"] = p2c["Aa"] = p2c["aa"] = "\252";
+			p2c["AB"] = p2c["aB"] = p2c["Ab"] = p2c["ab"] = "\253";
+			p2c["AC"] = p2c["aC"] = p2c["Ac"] = p2c["ac"] = "\254";
+			p2c["AD"] = p2c["aD"] = p2c["Ad"] = p2c["ad"] = "\255";
+			p2c["AE"] = p2c["aE"] = p2c["Ae"] = p2c["ae"] = "\256";
+			p2c["AF"] = p2c["aF"] = p2c["Af"] = p2c["af"] = "\257";
+			p2c["B0"] = p2c["b0"] = "\260"; p2c["B1"] = p2c["b1"] = "\261";
+			p2c["B2"] = p2c["b2"] = "\262"; p2c["B3"] = p2c["b3"] = "\263";
+			p2c["B4"] = p2c["b4"] = "\264"; p2c["B5"] = p2c["b5"] = "\265";
+			p2c["B6"] = p2c["b6"] = "\266"; p2c["B7"] = p2c["b7"] = "\267";
+			p2c["B8"] = p2c["b8"] = "\270"; p2c["B9"] = p2c["b9"] = "\271";
+			p2c["BA"] = p2c["bA"] = p2c["Ba"] = p2c["ba"] = "\272";
+			p2c["BB"] = p2c["bB"] = p2c["Bb"] = p2c["bb"] = "\273";
+			p2c["BC"] = p2c["bC"] = p2c["Bc"] = p2c["bc"] = "\274";
+			p2c["BD"] = p2c["bD"] = p2c["Bd"] = p2c["bd"] = "\275";
+			p2c["BE"] = p2c["bE"] = p2c["Be"] = p2c["be"] = "\276";
+			p2c["BF"] = p2c["bF"] = p2c["Bf"] = p2c["bf"] = "\277";
+			p2c["C0"] = p2c["c0"] = "\300"; p2c["C1"] = p2c["c1"] = "\301";
+			p2c["C2"] = p2c["c2"] = "\302"; p2c["C3"] = p2c["c3"] = "\303";
+			p2c["C4"] = p2c["c4"] = "\304"; p2c["C5"] = p2c["c5"] = "\305";
+			p2c["C6"] = p2c["c6"] = "\306"; p2c["C7"] = p2c["c7"] = "\307";
+			p2c["C8"] = p2c["c8"] = "\310"; p2c["C9"] = p2c["c9"] = "\311";
+			p2c["CA"] = p2c["cA"] = p2c["Ca"] = p2c["ca"] = "\312";
+			p2c["CB"] = p2c["cB"] = p2c["Cb"] = p2c["cb"] = "\313";
+			p2c["CC"] = p2c["cC"] = p2c["Cc"] = p2c["cc"] = "\314";
+			p2c["CD"] = p2c["cD"] = p2c["Cd"] = p2c["cd"] = "\315";
+			p2c["CE"] = p2c["cE"] = p2c["Ce"] = p2c["ce"] = "\316";
+			p2c["CF"] = p2c["cF"] = p2c["Cf"] = p2c["cf"] = "\317";
+			p2c["D0"] = p2c["d0"] = "\320"; p2c["D1"] = p2c["d1"] = "\321";
+			p2c["D2"] = p2c["d2"] = "\322"; p2c["D3"] = p2c["d3"] = "\323";
+			p2c["D4"] = p2c["d4"] = "\324"; p2c["D5"] = p2c["d5"] = "\325";
+			p2c["D6"] = p2c["d6"] = "\326"; p2c["D7"] = p2c["d7"] = "\327";
+			p2c["D8"] = p2c["d8"] = "\330"; p2c["D9"] = p2c["d9"] = "\331";
+			p2c["DA"] = p2c["dA"] = p2c["Da"] = p2c["da"] = "\332";
+			p2c["DB"] = p2c["dB"] = p2c["Db"] = p2c["db"] = "\333";
+			p2c["DC"] = p2c["dC"] = p2c["Dc"] = p2c["dc"] = "\334";
+			p2c["DD"] = p2c["dD"] = p2c["Dd"] = p2c["dd"] = "\335";
+			p2c["DE"] = p2c["dE"] = p2c["De"] = p2c["de"] = "\336";
+			p2c["DF"] = p2c["dF"] = p2c["Df"] = p2c["df"] = "\337";
+			p2c["E0"] = p2c["e0"] = "\340"; p2c["E1"] = p2c["e1"] = "\341";
+			p2c["E2"] = p2c["e2"] = "\342"; p2c["E3"] = p2c["e3"] = "\343";
+			p2c["E4"] = p2c["e4"] = "\344"; p2c["E5"] = p2c["e5"] = "\345";
+			p2c["E6"] = p2c["e6"] = "\346"; p2c["E7"] = p2c["e7"] = "\347";
+			p2c["E8"] = p2c["e8"] = "\350"; p2c["E9"] = p2c["e9"] = "\351";
+			p2c["EA"] = p2c["eA"] = p2c["Ea"] = p2c["ea"] = "\352";
+			p2c["EB"] = p2c["eB"] = p2c["Eb"] = p2c["eb"] = "\353";
+			p2c["EC"] = p2c["eC"] = p2c["Ec"] = p2c["ec"] = "\354";
+			p2c["ED"] = p2c["eD"] = p2c["Ed"] = p2c["ed"] = "\355";
+			p2c["EE"] = p2c["eE"] = p2c["Ee"] = p2c["ee"] = "\356";
+			p2c["EF"] = p2c["eF"] = p2c["Ef"] = p2c["ef"] = "\357";
+			p2c["F0"] = p2c["f0"] = "\360"; p2c["F1"] = p2c["f1"] = "\361";
+			p2c["F2"] = p2c["f2"] = "\362"; p2c["F3"] = p2c["f3"] = "\363";
+			p2c["F4"] = p2c["f4"] = "\364"; p2c["F5"] = p2c["f5"] = "\365";
+			p2c["F6"] = p2c["f6"] = "\366"; p2c["F7"] = p2c["f7"] = "\367";
+			p2c["F8"] = p2c["f8"] = "\370"; p2c["F9"] = p2c["f9"] = "\371";
+			p2c["FA"] = p2c["fA"] = p2c["Fa"] = p2c["fa"] = "\372";
+			p2c["FB"] = p2c["fB"] = p2c["Fb"] = p2c["fb"] = "\373";
+			p2c["FC"] = p2c["fC"] = p2c["Fc"] = p2c["fc"] = "\374";
+			p2c["FD"] = p2c["fD"] = p2c["Fd"] = p2c["fd"] = "\375";
+			p2c["FE"] = p2c["fE"] = p2c["Fe"] = p2c["fe"] = "\376";
+			p2c["FF"] = p2c["fF"] = p2c["Ff"] = p2c["ff"] = "\377";
+
+			if(httpDecode) {
+				gsub(/\+/, " ", string)
+			}
+
+			for(result = ""; match(string, /%[0-9A-Fa-f]{2}/); string = substr(string, RSTART + RLENGTH)) {
+				result = result substr(string, 1, RSTART - 1) p2c[substr(string, RSTART + 1, 2)]
+			}
+
+			return result string
+		}
+
+		### Function: url_encode
+		##
+		## 文字列を URL エンコードする。
+		##
+		## Parameters:
+		##
+		##   string - URL エンコードする文字列。
+		##   httpEncode - スペースを '+' にエンコードする。
+		##
+		## Returns:
+		##
+		##   URL エンコードされた文字列。
+
+		function url_encode(string, httpEncode,  c2p,len,i,result) {
+			c2p["\000"] = "%00"; c2p["\001"] = "%01"; c2p["\002"] = "%02"; c2p["\003"] = "%03";
+			c2p["\004"] = "%04"; c2p["\005"] = "%05"; c2p["\006"] = "%06"; c2p["\007"] = "%07";
+			c2p["\010"] = "%08"; c2p["\011"] = "%09"; c2p["\012"] = "%0A"; c2p["\013"] = "%0B";
+			c2p["\014"] = "%0C"; c2p["\015"] = "%0D"; c2p["\016"] = "%0E"; c2p["\017"] = "%0F";
+			c2p["\020"] = "%10"; c2p["\021"] = "%11"; c2p["\022"] = "%12"; c2p["\023"] = "%13";
+			c2p["\024"] = "%14"; c2p["\025"] = "%15"; c2p["\026"] = "%16"; c2p["\027"] = "%17";
+			c2p["\030"] = "%18"; c2p["\031"] = "%19"; c2p["\032"] = "%1A"; c2p["\033"] = "%1B";
+			c2p["\034"] = "%1C"; c2p["\035"] = "%1D"; c2p["\036"] = "%1E"; c2p["\037"] = "%1F";
+			c2p["\040"] = "%20"; c2p["\041"] = "%21"; c2p["\042"] = "%22"; c2p["\043"] = "%23";
+			c2p["\044"] = "%24"; c2p["\045"] = "%25"; c2p["\046"] = "%26"; c2p["\047"] = "%27";
+			c2p["\050"] = "%28"; c2p["\051"] = "%29"; c2p["\052"] = "%2A"; c2p["\053"] = "%2B";
+			c2p["\054"] = "%2C"; c2p["\055"] = "-"; c2p["\056"] = "."; c2p["\057"] = "%2F";
+			c2p["\060"] = "0"; c2p["\061"] = "1"; c2p["\062"] = "2"; c2p["\063"] = "3";
+			c2p["\064"] = "4"; c2p["\065"] = "5"; c2p["\066"] = "6"; c2p["\067"] = "7";
+			c2p["\070"] = "8"; c2p["\071"] = "9"; c2p["\072"] = "%3A"; c2p["\073"] = "%3B";
+			c2p["\074"] = "%3C"; c2p["\075"] = "%3D"; c2p["\076"] = "%3E"; c2p["\077"] = "%3F";
+			c2p["\100"] = "%40"; c2p["\101"] = "A"; c2p["\102"] = "B"; c2p["\103"] = "C";
+			c2p["\104"] = "D"; c2p["\105"] = "E"; c2p["\106"] = "F"; c2p["\107"] = "G";
+			c2p["\110"] = "H"; c2p["\111"] = "I"; c2p["\112"] = "J"; c2p["\113"] = "K";
+			c2p["\114"] = "L"; c2p["\115"] = "M"; c2p["\116"] = "N"; c2p["\117"] = "O";
+			c2p["\120"] = "P"; c2p["\121"] = "Q"; c2p["\122"] = "R"; c2p["\123"] = "S";
+			c2p["\124"] = "T"; c2p["\125"] = "U"; c2p["\126"] = "V"; c2p["\127"] = "W";
+			c2p["\130"] = "X"; c2p["\131"] = "Y"; c2p["\132"] = "Z"; c2p["\133"] = "%5B";
+			c2p["\134"] = "%5C"; c2p["\135"] = "%5D"; c2p["\136"] = "%5E"; c2p["\137"] = "_";
+			c2p["\140"] = "%60"; c2p["\141"] = "a"; c2p["\142"] = "b"; c2p["\143"] = "c";
+			c2p["\144"] = "d"; c2p["\145"] = "e"; c2p["\146"] = "f"; c2p["\147"] = "g";
+			c2p["\150"] = "h"; c2p["\151"] = "i"; c2p["\152"] = "j"; c2p["\153"] = "k";
+			c2p["\154"] = "l"; c2p["\155"] = "m"; c2p["\156"] = "n"; c2p["\157"] = "o";
+			c2p["\160"] = "p"; c2p["\161"] = "q"; c2p["\162"] = "r"; c2p["\163"] = "s";
+			c2p["\164"] = "t"; c2p["\165"] = "u"; c2p["\166"] = "v"; c2p["\167"] = "w";
+			c2p["\170"] = "x"; c2p["\171"] = "y"; c2p["\172"] = "z"; c2p["\173"] = "%7B";
+			c2p["\174"] = "%7C"; c2p["\175"] = "%7D"; c2p["\176"] = "~"; c2p["\177"] = "%7F";
+			c2p["\200"] = "%80"; c2p["\201"] = "%81"; c2p["\202"] = "%82"; c2p["\203"] = "%83";
+			c2p["\204"] = "%84"; c2p["\205"] = "%85"; c2p["\206"] = "%86"; c2p["\207"] = "%87";
+			c2p["\210"] = "%88"; c2p["\211"] = "%89"; c2p["\212"] = "%8A"; c2p["\213"] = "%8B";
+			c2p["\214"] = "%8C"; c2p["\215"] = "%8D"; c2p["\216"] = "%8E"; c2p["\217"] = "%8F";
+			c2p["\220"] = "%90"; c2p["\221"] = "%91"; c2p["\222"] = "%92"; c2p["\223"] = "%93";
+			c2p["\224"] = "%94"; c2p["\225"] = "%95"; c2p["\226"] = "%96"; c2p["\227"] = "%97";
+			c2p["\230"] = "%98"; c2p["\231"] = "%99"; c2p["\232"] = "%9A"; c2p["\233"] = "%9B";
+			c2p["\234"] = "%9C"; c2p["\235"] = "%9D"; c2p["\236"] = "%9E"; c2p["\237"] = "%9F";
+			c2p["\240"] = "%A0"; c2p["\241"] = "%A1"; c2p["\242"] = "%A2"; c2p["\243"] = "%A3";
+			c2p["\244"] = "%A4"; c2p["\245"] = "%A5"; c2p["\246"] = "%A6"; c2p["\247"] = "%A7";
+			c2p["\250"] = "%A8"; c2p["\251"] = "%A9"; c2p["\252"] = "%AA"; c2p["\253"] = "%AB";
+			c2p["\254"] = "%AC"; c2p["\255"] = "%AD"; c2p["\256"] = "%AE"; c2p["\257"] = "%AF";
+			c2p["\260"] = "%B0"; c2p["\261"] = "%B1"; c2p["\262"] = "%B2"; c2p["\263"] = "%B3";
+			c2p["\264"] = "%B4"; c2p["\265"] = "%B5"; c2p["\266"] = "%B6"; c2p["\267"] = "%B7";
+			c2p["\270"] = "%B8"; c2p["\271"] = "%B9"; c2p["\272"] = "%BA"; c2p["\273"] = "%BB";
+			c2p["\274"] = "%BC"; c2p["\275"] = "%BD"; c2p["\276"] = "%BE"; c2p["\277"] = "%BF";
+			c2p["\300"] = "%C0"; c2p["\301"] = "%C1"; c2p["\302"] = "%C2"; c2p["\303"] = "%C3";
+			c2p["\304"] = "%C4"; c2p["\305"] = "%C5"; c2p["\306"] = "%C6"; c2p["\307"] = "%C7";
+			c2p["\310"] = "%C8"; c2p["\311"] = "%C9"; c2p["\312"] = "%CA"; c2p["\313"] = "%CB";
+			c2p["\314"] = "%CC"; c2p["\315"] = "%CD"; c2p["\316"] = "%CE"; c2p["\317"] = "%CF";
+			c2p["\320"] = "%D0"; c2p["\321"] = "%D1"; c2p["\322"] = "%D2"; c2p["\323"] = "%D3";
+			c2p["\324"] = "%D4"; c2p["\325"] = "%D5"; c2p["\326"] = "%D6"; c2p["\327"] = "%D7";
+			c2p["\330"] = "%D8"; c2p["\331"] = "%D9"; c2p["\332"] = "%DA"; c2p["\333"] = "%DB";
+			c2p["\334"] = "%DC"; c2p["\335"] = "%DD"; c2p["\336"] = "%DE"; c2p["\337"] = "%DF";
+			c2p["\340"] = "%E0"; c2p["\341"] = "%E1"; c2p["\342"] = "%E2"; c2p["\343"] = "%E3";
+			c2p["\344"] = "%E4"; c2p["\345"] = "%E5"; c2p["\346"] = "%E6"; c2p["\347"] = "%E7";
+			c2p["\350"] = "%E8"; c2p["\351"] = "%E9"; c2p["\352"] = "%EA"; c2p["\353"] = "%EB";
+			c2p["\354"] = "%EC"; c2p["\355"] = "%ED"; c2p["\356"] = "%EE"; c2p["\357"] = "%EF";
+			c2p["\360"] = "%F0"; c2p["\361"] = "%F1"; c2p["\362"] = "%F2"; c2p["\363"] = "%F3";
+			c2p["\364"] = "%F4"; c2p["\365"] = "%F5"; c2p["\366"] = "%F6"; c2p["\367"] = "%F7";
+			c2p["\370"] = "%F8"; c2p["\371"] = "%F9"; c2p["\372"] = "%FA"; c2p["\373"] = "%FB";
+			c2p["\374"] = "%FC"; c2p["\375"] = "%FD"; c2p["\376"] = "%FE"; c2p["\377"] = "%FF";
+
+			if(httpEncode) {
+				c2p[" "] = "+"
+			}
+
+			len = length(string)
+			for(i = 1; i <= len; i++) {
+				result = result c2p[substr(string, i, 1)]
+			}
+
+			return result
+		}
+
+		BEGIN {
+			FS = "\t"
+			typeCount = split(mimeTypeList, types, ",")
+			urlCount = split("", urls)
+			split("", parameters)
+
+			parameters["language"] = "*"
+			parameters["inputEncoding"] = parameters["outputEncoding"] = "UTF-8"
+
+			for(i = 1; i < ARGC; i += 2) {
+				if(ARGV[i] == "-") {
+					break
+				}
+
+				parameters[ARGV[i]] = ARGV[i + 1]
+				ARGV[i] = ARGV[i + 1] = ""
+			}
+
+			for(i in types) {
+				split(types[i], array, "/")
+
+				types[i, "supertype"] = array[1]
+				types[i, "subtype"] = array[2]
+
+				delete types[i]
+			}
+		}
+
+		{
+			urlCount++
+			urls[urlCount, "template"] = $1
+			urls[urlCount, "indexOffset"] = $3
+			urls[urlCount, "pageOffset"] = $4
+			urls[urlCount, "nsList"] = $5
+
+			gsub(/[\t ]*;.*$/, "", $2)
+			split($2, array, "/")
+
+			urls[urlCount, "supertype"] = array[1]
+			urls[urlCount, "subtype"] = array[2]
+		}
+
+		END	{
+			parameterPattern = "\\{([A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})+\\??\\}"
+
+			for(ti = 1; ti <= typeCount; ti++) {
+				for(ui = 1; ui <= urlCount; ui++) {
+					if((types[ti, "supertype"] == urls[ui, "supertype"] || types[ti, "supertype"] == "*") && (types[ti, "subtype"] == urls[ui, "subtype"] || types[ti, "subtype"] == "*")) {
+						split(urls[urlCount, "nsList"], ns, "|")
+
+						for(i in ns) {
+							position = index(ns[i], "=")
+							ns[substr(ns[i], 1, position - 1)] = substr(ns[i], position + 1)
+
+							delete ns[i]
+						}
+
+						if(!("startIndex" in parameters)) {
+							parameters["startIndex"] = urls[ui, "indexOffset"]
+						}
+
+						if(!("startPage" in parameters)) {
+							parameters["startPage"] = urls[ui, "pageOffset"]
+						}
+
+						for(url = ""; match(urls[ui, "template"], parameterPattern); urls[ui, "template"] = substr(urls[ui, "template"], _RSTART + _RLENGTH)) {
+							_RSTART = RSTART
+							_RLENGTH = RLENGTH
+
+							param = substr(urls[ui, "template"], _RSTART + 1, _RLENGTH - 2)
+							emptyFlag = 0
+
+							if(param ~ /\?$/) {
+								emptyFlag = 1
+
+								gsub(/\?$/, "", param)
+							}
+
+							if(position = index(param, ":")) {
+								prefix = url_decode(substr(param, 1, position - 1))
+
+								if(!(prefix in ns)) {
+									printf("'%s' には '{%s}' に対応する XML 名前空間の URI が存在しません。\n", file, param) | "cat >&2"
+
+									exit sysexits("EX_DATAERR")
+								}
+
+								param = sprintf("{%s}%s", ns[prefix], url_decode(substr(param, position + 1)))
+							} else {
+								param = sprintf("{%s}%s", "http://a9.com/-/spec/opensearch/1.1/", url_decode(param))
+							}
+
+							if(!(param in parameters) || parameters[param] == "") {
+								if(!emptyFlag) {
+									printf("'%s' には '%s' の値が必要です。\n", file, param) | "cat >&2"
+
+									exit sysexits("EX_USAGE")
+								}
+
+								parameters[param] = ""
+							}
+
+							url = url substr(urls[ui, "template"], 1, _RSTART - 1) url_encode(parameters[param])
+						}
+
+						printf("%s", url urls[ui, "template"])
+
+						exit
+					}
+				}
+			}
+
+			printf("'%s' には対応する Url 要素が存在しません。\n", file) | "cat >&2"
+
+			exit sysexits("EX_UNAVAILABLE")
+		}
+		__EOF__
+	)
+
+	awkv_escape 'localFile' "${1}"
+	awkv_escape 'localAcceptType' "${2}"
+
+	shift '2'
+
+	awk \
+		-v "file=${localFile}" \
+		-v "mimeTypeList=${localAcceptType}" \
+		-- "${localAwkScript}" ${@+"${@}"} -
+}
+
+parse ${@+"${@}"}
+eval "set -- ${REST}"
+
+tmpDir=$(mktemp -d)
+
+: ${OPENSEARCH_RELAXNG_SCHEMA:="${tmpDir}/schema.rng"}
+: ${OPENSEARCH_NORMALIZE_XSLT:="${tmpDir}/normalize.xsl"}
+: ${OPENSEARCH_PLAINTEXT_XSLT:="${tmpDir}/plain-text.xsl"}
+: ${OPENSEARCH_URL_ELEMENT_TO_TSV_XSLT="${tmpDir}/url-element-to-tsv.xsl"}
+
+export \
+	'OPENSEARCH_RELAXNG_SCHEMA' 'OPENSEARCH_NORMALIZE_XSLT' \
+	'OPENSEARCH_URL_ELEMENT_TO_TSV_XSLT'
+
+readonly 'OPENSEARCH_MIME_TYPE=application/opensearchdescription+xml'
+readonly 'OPENSEARCH_NS=http://a9.com/-/spec/opensearch/1.1/'
+readonly 'MOZILLA_NS=http://www.mozilla.org/2006/browser/search/'
+readonly 'XHTML_NS=http://www.w3.org/1999/xhtml'
+
+if command xmlstarlet --help >'/dev/null' 2>&1; then
+	xml() {
+		command xmlstarlet ${@+"${@}"}
+	}
+fi
+
+case "${#}" in '0')
+	usage
+
+	end_call
+	;;
+esac
+
+subCommand="${1}"
+shift
+
+case "${subCommand}" in
+	'add') opensearch_add ${@+"${@}"};;
+	'contact') opensearch_contact ${@+"${@}"};;
+	'search') opensearch_search ${@+"${@}"};;
+	'show') opensearch_show ${@+"${@}"};;
+	'update') opensearch_update ${@+"${@}"};;
+	'validate') opensearch_validate ${@+"${@}"};;
+esac
