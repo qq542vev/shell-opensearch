@@ -24,6 +24,7 @@
 	xmlns="http://a9.com/-/spec/opensearch/1.1/"
 	xmlns:moz="http://www.mozilla.org/2006/browser/search/"
 	xmlns:os="http://a9.com/-/spec/opensearch/1.1/"
+	xmlns:parameters="http://a9.com/-/spec/opensearch/extensions/parameters/1.0/"
 	xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 	exclude-result-prefixes="os moz"
 >
@@ -72,7 +73,7 @@
 	<xsl:template match="os:Url">
 		<xsl:copy>
 			<xsl:call-template name="namespace_copy"/>
-			<xsl:apply-templates select="@*"/>
+			<xsl:apply-templates select="node() | @*"/>
 
 			<xsl:if test="not(@rel)">
 				<xsl:attribute name="rel">results</xsl:attribute>
@@ -88,15 +89,16 @@
 		</xsl:copy>
 	</xsl:template>
 
-	<xsl:template match="
-		os:Contact | os:Tags | os:Image | os:Language
-		| os:InputEncoding | os:OutputEncoding | moz:SearchForm
-	">
+	<xsl:template match="os:Url[translate(normalize-space(), 'POST', 'post') = 'post']/os:Param">
+		<parameters:Parameter>
+			<xsl:apply-templates select="node() | @*"/>
+		</parameters:Parameter>
+	</xsl:template>
+
+	<xsl:template match="os:Query">
 		<xsl:copy>
 			<xsl:call-template name="namespace_copy"/>
-			<xsl:apply-templates select="@*"/>
-
-			<xsl:value-of select="normalize-space()"/>
+			<xsl:apply-templates select="node() | @*"/>
 		</xsl:copy>
 	</xsl:template>
 
@@ -125,13 +127,31 @@
 		</xsl:copy>
 	</xsl:template>
 
-	<xsl:template match="os:*">
+	<xsl:template match="os:ShortName | os:Description | os:LongName | os:Developer | os:Attribution">
 		<xsl:copy>
 			<xsl:call-template name="namespace_copy"/>
 			<xsl:apply-templates select="@*"/>
 
 			<xsl:value-of select="."/>
 		</xsl:copy>
+	</xsl:template>
+
+	<xsl:template match="
+		os:Contact | os:Tags | os:Image | os:Language
+		| os:InputEncoding | os:OutputEncoding | moz:SearchForm
+	">
+		<xsl:copy>
+			<xsl:call-template name="namespace_copy"/>
+			<xsl:apply-templates select="@*"/>
+
+			<xsl:value-of select="normalize-space()"/>
+		</xsl:copy>
+	</xsl:template>
+
+	<xsl:template match="os:*"/>
+
+	<xsl:template match="os:Url/@method[translate(normalize-space(), 'POST', 'post') = 'post']">
+		<xsl:attribute name="parameters:method">POST</xsl:attribute>
 	</xsl:template>
 
 	<xsl:template match="
@@ -144,11 +164,22 @@
 		</xsl:attribute>
 	</xsl:template>
 
-	<xsl:template match="os:*/@*[namespace-uri() = '']">
+	<xsl:template match="
+		os:Url/@template | os:Url/@type | os:Url/@rel | os:Url/@indexOffset | os:Url/@pageOffset
+		| os:Query/@role | os:Query/@totalResults | os:Query/@startIndex| os:Query/@startPage
+		| os:Query/@language | os:Query/@inputEncoding | os:Query/@outputEncoding
+		| os:Image/@width | os:Image/@height | os:Image/@type
+	">
 		<xsl:attribute name="{name()}">
 			<xsl:value-of select="normalize-space()"/>
 		</xsl:attribute>
 	</xsl:template>
+
+	<xsl:template match="os:Param/@name | os:Param/@value | os:Query/@title | os:Query/@searchTerms">
+		<xsl:copy-of select="."/>
+	</xsl:template>
+
+	<xsl:template match="os:*/@*[namespace-uri() = ''] | @os:*"/>
 
 	<xsl:template match="node() | @*">
 		<xsl:copy-of select="."/>
