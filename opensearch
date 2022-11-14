@@ -869,9 +869,14 @@ GETOPTIONSHERE
 			--value-of 'normalize-space(@href)' --nl "${downloadHTML}" \
 		| awk -v "baseURL=${url}" -- "${awkScript}" \
 		| while read -r linkURL; do
-			if download "${downloadXML}" "${linkURL}" && opensearch_file_check --quiet "${downloadXML}"; then
+			rm -f "${downloadXML}"
+
+			if
+				download "${downloadXML}" "${linkURL}" && xml validate --quiet "${downloadXML}" \
+				&& opensearch_normalize "${downloadXML}" | tee -- "${tmpDir}/normalized.xml" | opensearch_file_check --quiet -
+			then
 				: >"${tmpDir}/success"
-				cat -- "${downloadXML}" >"${dest}"
+				cat -- "${tmpDir}/normalized.xml" >"${dest}"
 
 				break
 			fi
@@ -1829,6 +1834,7 @@ opensearch_normalize() {
 			xmlns="http://a9.com/-/spec/opensearch/1.1/"
 			xmlns:moz="http://www.mozilla.org/2006/browser/search/"
 			xmlns:os="http://a9.com/-/spec/opensearch/1.1/"
+			xmlns:parameters="http://a9.com/-/spec/opensearch/extensions/parameters/1.0/"
 			xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 			exclude-result-prefixes="os moz"
 		>
@@ -1838,12 +1844,11 @@ opensearch_normalize() {
 				omit-xml-declaration="no"
 			/>
 
-			<xsl:strip-space elements="os:OpenSearchDescription"/>
+			<xsl:strip-space elements="os:OpenSearchDescription os:Url os:Query"/>
 
 			<xsl:template match="os:OpenSearchDescription">
 				<xsl:copy>
 					<xsl:call-template name="namespace_copy"/>
-
 					<xsl:apply-templates select="node() | @*"/>
 
 					<xsl:if test="not(os:LongName)">
@@ -1876,9 +1881,6 @@ opensearch_normalize() {
 
 			<xsl:template match="os:Url">
 				<xsl:copy>
-					<xsl:call-template name="namespace_copy"/>
-					<xsl:apply-templates select="@*"/>
-
 					<xsl:if test="not(@rel)">
 						<xsl:attribute name="rel">results</xsl:attribute>
 					</xsl:if>
@@ -1890,18 +1892,22 @@ opensearch_normalize() {
 					<xsl:if test="not(@pageOffset)">
 						<xsl:attribute name="pageOffset">1</xsl:attribute>
 					</xsl:if>
+
+					<xsl:call-template name="namespace_copy"/>
+					<xsl:apply-templates select="node() | @*"/>
 				</xsl:copy>
 			</xsl:template>
 
-			<xsl:template match="
-				os:Contact | os:Tags | os:Image | os:Language
-				| os:InputEncoding | os:OutputEncoding | moz:SearchForm
-			">
+			<xsl:template match="os:Url[translate(normalize-space(@method), 'POST', 'post') = 'post']/os:Param">
+				<parameters:Parameter>
+					<xsl:apply-templates select="node() | @*"/>
+				</parameters:Parameter>
+			</xsl:template>
+
+			<xsl:template match="os:Query">
 				<xsl:copy>
 					<xsl:call-template name="namespace_copy"/>
-					<xsl:apply-templates select="@*"/>
-
-					<xsl:value-of select="normalize-space()"/>
+					<xsl:apply-templates select="node() | @*"/>
 				</xsl:copy>
 			</xsl:template>
 
@@ -1922,7 +1928,7 @@ opensearch_normalize() {
 					<xsl:apply-templates select="@*"/>
 
 					<xsl:choose>
-						<xsl:when test="$value = 'false' or $value = 'FALSE' or $value = '0' or $value = 'no'  or $value = 'NO'">false</xsl:when>
+						<xsl:when test="$value = 'false' or $value = 'FALSE' or $value = '0' or $value = 'no' or $value = 'NO'">false</xsl:when>
 						<xsl:otherwise>
 							<xsl:value-of select="."/>
 						</xsl:otherwise>
@@ -1930,13 +1936,31 @@ opensearch_normalize() {
 				</xsl:copy>
 			</xsl:template>
 
-			<xsl:template match="os:*">
+			<xsl:template match="os:ShortName | os:Description | os:LongName | os:Developer | os:Attribution">
 				<xsl:copy>
 					<xsl:call-template name="namespace_copy"/>
 					<xsl:apply-templates select="@*"/>
 
 					<xsl:value-of select="."/>
 				</xsl:copy>
+			</xsl:template>
+
+			<xsl:template match="
+				os:Contact | os:Tags | os:Image | os:Language
+				| os:InputEncoding | os:OutputEncoding | moz:SearchForm
+			">
+				<xsl:copy>
+					<xsl:call-template name="namespace_copy"/>
+					<xsl:apply-templates select="@*"/>
+
+					<xsl:value-of select="normalize-space()"/>
+				</xsl:copy>
+			</xsl:template>
+
+			<xsl:template match="os:*"/>
+
+			<xsl:template match="os:Url/@method[translate(normalize-space(), 'POST', 'post') = 'post']">
+				<xsl:attribute name="parameters:method">POST</xsl:attribute>
 			</xsl:template>
 
 			<xsl:template match="
@@ -1949,11 +1973,22 @@ opensearch_normalize() {
 				</xsl:attribute>
 			</xsl:template>
 
-			<xsl:template match="os:*/@*[namespace-uri() = '']">
+			<xsl:template match="
+				os:Url/@template | os:Url/@type | os:Url/@rel | os:Url/@indexOffset | os:Url/@pageOffset
+				| os:Query/@role | os:Query/@totalResults | os:Query/@startIndex| os:Query/@startPage
+				| os:Query/@language | os:Query/@inputEncoding | os:Query/@outputEncoding
+				| os:Image/@width | os:Image/@height | os:Image/@type
+			">
 				<xsl:attribute name="{name()}">
 					<xsl:value-of select="normalize-space()"/>
 				</xsl:attribute>
 			</xsl:template>
+
+			<xsl:template match="os:Param/@name | os:Param/@value | os:Query/@title | os:Query/@searchTerms">
+				<xsl:copy-of select="."/>
+			</xsl:template>
+
+			<xsl:template match="os:*/@*[namespace-uri() = ''] | @os:*"/>
 
 			<xsl:template match="node() | @*">
 				<xsl:copy-of select="."/>
@@ -2457,7 +2492,7 @@ GETOPTIONSHERE
 
 	for xmlFile in ${@+"${@}"}; do
 		index=$((${index:-0} + 1))
-		downloadFile="${tmpDir}/download${index}.xml"
+		downloadXML="${tmpDir}/download${index}.xml"
 		url=$(
 			opensearch_normalize "${xmlFile}" \
 			| opensearch_url_element_to_tsv - 'self' \
@@ -2467,9 +2502,14 @@ GETOPTIONSHERE
 				"${parameters}"
 		) || end_call "${?}"
 
-		download "${downloadFile}" "${url}" "${OPENSEARCH_MIME_TYPE}, application/xml"
+		download "${downloadXML}" "${url}" "${OPENSEARCH_MIME_TYPE}, application/xml"
 
-		if opensearch_file_check --err --quiet "${downloadFile}"; then :; else
+		if
+			xml validate --err --quiet "${downloadXML}" \
+			&& opensearch_normalize "${downloadXML}" | tee -- "${tmpDir}/normalized.xml" | opensearch_file_check --err --quiet -
+		then
+			cat -- "${tmpDir}/normalized.xml" >"${downloadXML}"
+		else
 			printf "%s: %s は OpenSearch description document ではありません。\\n" "${0##*/}" "${url}" >&2
 			printf "詳細については '%s' を実行してください。\\n" "${0##*/} --help" >&2
 

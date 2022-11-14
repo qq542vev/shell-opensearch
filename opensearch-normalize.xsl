@@ -34,12 +34,11 @@
 		omit-xml-declaration="no"
 	/>
 
-	<xsl:strip-space elements="os:OpenSearchDescription"/>
+	<xsl:strip-space elements="os:OpenSearchDescription os:Url os:Query"/>
 
 	<xsl:template match="os:OpenSearchDescription">
 		<xsl:copy>
 			<xsl:call-template name="namespace_copy"/>
-
 			<xsl:apply-templates select="node() | @*"/>
 
 			<xsl:if test="not(os:LongName)">
@@ -72,9 +71,6 @@
 
 	<xsl:template match="os:Url">
 		<xsl:copy>
-			<xsl:call-template name="namespace_copy"/>
-			<xsl:apply-templates select="node() | @*"/>
-
 			<xsl:if test="not(@rel)">
 				<xsl:attribute name="rel">results</xsl:attribute>
 			</xsl:if>
@@ -86,10 +82,13 @@
 			<xsl:if test="not(@pageOffset)">
 				<xsl:attribute name="pageOffset">1</xsl:attribute>
 			</xsl:if>
+
+			<xsl:call-template name="namespace_copy"/>
+			<xsl:apply-templates select="node() | @*"/>
 		</xsl:copy>
 	</xsl:template>
 
-	<xsl:template match="os:Url[translate(normalize-space(), 'POST', 'post') = 'post']/os:Param">
+	<xsl:template match="os:Url[translate(normalize-space(@method), 'POST', 'post') = 'post']/os:Param">
 		<parameters:Parameter>
 			<xsl:apply-templates select="node() | @*"/>
 		</parameters:Parameter>
@@ -119,7 +118,7 @@
 			<xsl:apply-templates select="@*"/>
 
 			<xsl:choose>
-				<xsl:when test="$value = 'false' or $value = 'FALSE' or $value = '0' or $value = 'no'  or $value = 'NO'">false</xsl:when>
+				<xsl:when test="$value = 'false' or $value = 'FALSE' or $value = '0' or $value = 'no' or $value = 'NO'">false</xsl:when>
 				<xsl:otherwise>
 					<xsl:value-of select="."/>
 				</xsl:otherwise>
