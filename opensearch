@@ -346,7 +346,7 @@ parser_definition_contact() {
 			"  ${2##*/} contact [OPTION]... OPENSEARCH_FILE" \
 		'' 'Options:'
 
-	option extarnal       -e --{no-}extarnal init:@no on:"${MAILER:-mutt}" no:echo var:'COMMAND' -- '外部プログラムを起動する'
+	option extarnal       -e --{no-}extarnal init:@no on:'${MAILER:-mutt}' no:echo var:COMMAND -- '外部プログラムを起動する'
 	disp   :usage_contact -h --help          -- 'このヘルプを表示して終了する'
 }
 
@@ -366,7 +366,7 @@ parser_definition_search() {
 			"  ${2##*/} search [OPTION]... OPENSEARCH_FILE [KEYWORD]..." \
 		'' 'Options:'
 
-	option extarnal      -e --{no-}extarnal      init:@no on:"${BROWSER:-lynx}" no:echo var:'COMMAND' -- '外部プログラムを起動する'
+	option extarnal      -e --{no-}extarnal      init:@no on:'${BROWSER:-lynx}' no:echo var:COMMAND -- '外部プログラムを起動する'
 	param  :'add_parameter "parameters" "${OPTARG}"' -p --template-parameter validate:'template_parameter_check "${OPTARG}"' var:'[{NAMESPACE_URI}]NAME=[VALUE]' -- 'テンプレートパラメータを指定する'
 	flag   parameters    --no-template-parameter init:@no on: no: -- '-p, --template-parameter をリセットする'
 	param  mimeType      -t --accept-type        init:='text/html,application/xhtml+xml,application/atom+xml,application/rss+xml,application/xml,text/plain,text/*,*/*' var:'MIME_TYPE[,MIME_TYPE]...' validate:"regex_match \"\${OPTARG}\" \"^(application|audio|font|example|image|message|model|multipart|text|video|x-[!#-'*+.0-9A-Z^_-z|~-]+|\*)/[!#-'*+.0-9A-Z\^_-z|~-]+(,(application|audio|font|example|image|message|model|multipart|text|video|x-[!#-'*+.0-9A-Z^_-z|~-]+|\*)/[!#-'*+.0-9A-Z\^_-z|~-]+)*$\"" -- '希望するリソースの MIME タイプを指定する'
@@ -599,6 +599,20 @@ argument_to_filepath() {
 }
 
 download() {
+	case "${2}" in 'file:///')
+		set -- "${1}" "${2#file://}"
+		set -- "${1}" "${2%%#*}"
+		set -- "${1}" "${2%%\?*}"
+
+		(
+			cd -- '/'
+			cat -- "${2}" >"${1}"
+		)
+
+		return 0
+		;;
+	esac
+
 	if command -v 'wget' >'/dev/null'; then
 		wget --header "Accept: ${3-*/*}" --no-verbose --output-document "${1}" -- "${2}"
 	elif command -v 'curl' >'/dev/null'; then
@@ -965,7 +979,7 @@ parse_contact() {
         set -- "$1" "$@"
         [ ${OPTARG+x} ] && {
           case $1 in --no-*|--without-*) set "noarg" "${1%%\=*}"; break; esac
-          [ "${OPTARG:-}" ] && { shift; OPTARG=$2; } || OPTARG='mutt'
+          [ "${OPTARG:-}" ] && { shift; OPTARG=$2; } || OPTARG='${MAILER:-mutt}'
         } || OPTARG='echo'
         extarnal="$OPTARG"
         shift ;;
@@ -2231,7 +2245,7 @@ parse_search() {
         set -- "$1" "$@"
         [ ${OPTARG+x} ] && {
           case $1 in --no-*|--without-*) set "noarg" "${1%%\=*}"; break; esac
-          [ "${OPTARG:-}" ] && { shift; OPTARG=$2; } || OPTARG='w3m'
+          [ "${OPTARG:-}" ] && { shift; OPTARG=$2; } || OPTARG='${BROWSER:-lynx}'
         } || OPTARG='echo'
         extarnal="$OPTARG"
         shift ;;
