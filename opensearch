@@ -346,7 +346,7 @@ parser_definition_contact() {
 			"  ${2##*/} contact [OPTION]... OPENSEARCH_FILE" \
 		'' 'Options:'
 
-	option extarnal       -e --{no-}extarnal init:@no on:'${MAILER:-mutt}' no:echo var:COMMAND -- '外部プログラムを起動する'
+	option extarnal       -e --{no-}extarnal init:@no on: no:echo var:COMMAND -- '外部プログラムを起動する'
 	disp   :usage_contact -h --help          -- 'このヘルプを表示して終了する'
 }
 
@@ -366,7 +366,7 @@ parser_definition_search() {
 			"  ${2##*/} search [OPTION]... OPENSEARCH_FILE [KEYWORD]..." \
 		'' 'Options:'
 
-	option extarnal      -e --{no-}extarnal      init:@no on:'${BROWSER:-lynx}' no:echo var:COMMAND -- '外部プログラムを起動する'
+	option extarnal      -e --{no-}extarnal      init:@no on: no:echo var:COMMAND -- '外部プログラムを起動する'
 	param  :'add_parameter "parameters" "${OPTARG}"' -p --template-parameter validate:'template_parameter_check "${OPTARG}"' var:'[{NAMESPACE_URI}]NAME=[VALUE]' -- 'テンプレートパラメータを指定する'
 	flag   parameters    --no-template-parameter init:@no on: no: -- '-p, --template-parameter をリセットする'
 	param  mimeType      -t --accept-type        init:='text/html,application/xhtml+xml,application/atom+xml,application/rss+xml,application/xml,text/plain,text/*,*/*' var:'MIME_TYPE[,MIME_TYPE]...' validate:"regex_match \"\${OPTARG}\" \"^(application|audio|font|example|image|message|model|multipart|text|video|x-[!#-'*+.0-9A-Z^_-z|~-]+|\*)/[!#-'*+.0-9A-Z\^_-z|~-]+(,(application|audio|font|example|image|message|model|multipart|text|video|x-[!#-'*+.0-9A-Z^_-z|~-]+|\*)/[!#-'*+.0-9A-Z\^_-z|~-]+)*$\"" -- '希望するリソースの MIME タイプを指定する'
@@ -716,11 +716,7 @@ GETOPTIONSHERE
 
 	case "${1}" in
 		'/'* | './'* | '../'*) dest="${1}";;
-		*)
-			mkdir -p -- "${configDir}"
-
-			dest="${configDir}/${1}.xml"
-			;;
+		*) dest="${configDir}/${1}.xml";;
 	esac
 
 	url="${2}"
@@ -869,6 +865,9 @@ GETOPTIONSHERE
 		__EOF__
 	)
 
+	destDir=$(dirname "${dest}"; printf '_')
+	mkdir -p -- "${destDir%?_}"
+
 	download \
 		"${downloadXML}" "${url}" \
 		"${OPENSEARCH_MIME_TYPE}, application/xml, text/html, application/xhtml+xml"
@@ -979,7 +978,7 @@ parse_contact() {
         set -- "$1" "$@"
         [ ${OPTARG+x} ] && {
           case $1 in --no-*|--without-*) set "noarg" "${1%%\=*}"; break; esac
-          [ "${OPTARG:-}" ] && { shift; OPTARG=$2; } || OPTARG='${MAILER:-mutt}'
+          [ "${OPTARG:-}" ] && { shift; OPTARG=$2; } || OPTARG=''
         } || OPTARG='echo'
         extarnal="$OPTARG"
         shift ;;
@@ -1047,7 +1046,7 @@ GETOPTIONSHERE
 
 	case "${extarnal}" in
 		'echo') eval 'printf "%s\\n"' "${emails}";;
-		*) LC_ALL="${ORIGINAL_LC_ALL}" eval 'sh -c "${extarnal} \${@+\"\${@}\"}" sh' "${emails}";;
+		*) LC_ALL="${ORIGINAL_LC_ALL}" eval 'sh -c "${extarnal:-${MAILER:-mutt}} \${@+\"\${@}\"}" sh' "${emails}";;
 	esac
 }
 
@@ -2245,7 +2244,7 @@ parse_search() {
         set -- "$1" "$@"
         [ ${OPTARG+x} ] && {
           case $1 in --no-*|--without-*) set "noarg" "${1%%\=*}"; break; esac
-          [ "${OPTARG:-}" ] && { shift; OPTARG=$2; } || OPTARG='${BROWSER:-lynx}'
+          [ "${OPTARG:-}" ] && { shift; OPTARG=$2; } || OPTARG=''
         } || OPTARG='echo'
         extarnal="$OPTARG"
         shift ;;
@@ -2346,7 +2345,7 @@ GETOPTIONSHERE
 
 	case "${extarnal}" in
 		'echo') eval 'printf "%s\\n"' "${urls}";;
-		*) LC_ALL="${ORIGINAL_LC_ALL}" eval 'sh -c "${extarnal} \${@+\"\${@}\"}" sh' "${urls}";;
+		*) LC_ALL="${ORIGINAL_LC_ALL}" eval 'sh -c "${extarnal:-${BROWSER:-lynx}} \${@+\"\${@}\"}" sh' "${urls}";;
 	esac
 }
 
