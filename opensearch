@@ -332,7 +332,7 @@ parser_definition() {
 parser_definition_add() {
 	setup REST abbr:true error:option_error plus:true no:0 help:usage_add \
 		-- 'Usage:' \
-			"  ${2##*/} add [OPTION]... NAME URL" \
+			"  ${2##*/} add [OPTION]... NAME[,NAME]... URL" \
 			"  ${2##*/} add [OPTION]... FILE_PATH URL" \
 		'' 'Options:'
 
@@ -352,7 +352,9 @@ parser_definition_contact() {
 
 parser_definition_list() {
 	setup REST abbr:true error:option_error plus:true no:0 help:usage_list \
-		-- 'Usage:' "  ${2##*/} contact [OPTION]... NAME[,NAME]..." \
+		-- 'Usage:' \
+			"  ${2##*/} contact [OPTION]... NAME[,NAME]..." \
+			"  ${2##*/} contact [OPTION]... OPENSEARCH_FILE" \
 		'' 'Options:'
 
 	flag pathFlag    -p --{no-}path init:@no -- '名前ではなくパスを表示する'
@@ -731,7 +733,7 @@ parse_add() {
 usage_add() {
 cat<<'GETOPTIONSHERE'
 Usage:
-  opensearch add [OPTION]... NAME URL
+  opensearch add [OPTION]... NAME[,NAME]... URL
   opensearch add [OPTION]... FILE_PATH URL
 
 Options:
@@ -1976,6 +1978,7 @@ usage_list() {
 cat<<'GETOPTIONSHERE'
 Usage:
   opensearch contact [OPTION]... NAME[,NAME]...
+  opensearch contact [OPTION]... OPENSEARCH_FILE
 
 Options:
   -p,     --{no-}path         名前ではなくパスを表示する
