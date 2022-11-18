@@ -617,15 +617,15 @@ argument_to_filepath() {
 	case "${2}" in
 		/* | .[,/]* | ..[,/]* | *[,/]. | *[,/].. | *[,/].[,/]* | *[,/]..[,/]*) append_array_posix "${1}" "${2}";;
 		*)
-			while [ -n "${2}" ]; do
+			while :; do
 				case "${2%%,*}" in
-					'.' | */) eval append_array_posix '"${1}"' "$(find -- "${configDir}/${2%%,*}" -name '*.xml' -type f -exec awk -- "${3}" '{}' '+')";;
+					'' | */) eval append_array_posix '"${1}"' "$(find -- "${configDir}/${2%%,*}" -name '*.xml' -type f -exec awk -- "${3}" '{}' '+')";;
 					*) append_array_posix "${1}" "${configDir}/${2%%,*}.xml";;
 				esac
 
 				case "${2}" in
 					*,*) set -- "${1}" "${2#*,}" "${3}";;
-					*) set  -- "${1}" '' "${3}";;
+					*) break;;
 				esac
 			done
 			;;
@@ -923,7 +923,7 @@ GETOPTIONSHERE
 		xml select -N "xhtml=${XHTML_NS}" --template \
 			--match '(/html/head/link | /xhtml:html/xhtml:head/xhtml:link)[@href]' \
 			--match "self::*[normalize-space(@type) = '${OPENSEARCH_MIME_TYPE}']" \
-			--match 'self::*[contains(concat(" ", translate(normalize-space(@rel), "SEARCH", "search"), " "), "search")]' \
+			--match 'self::*[contains(concat(" ", translate(normalize-space(@rel), "SEARCH", "search"), " "), " search ")]' \
 			--value-of 'normalize-space(@href)' --nl "${downloadHTML}" \
 		| awk -v "baseURL=${url}" -- "${awkScript}" \
 		| while read -r linkURL; do
@@ -1991,7 +1991,11 @@ GETOPTIONSHERE
 	parse_list ${@+"${@}"}
 	eval "set -- ${REST}"
 
-	argument_count_check "${#}" '0' '1'
+	case "${#}" in
+		'0') set -- '.'
+	esac
+
+	argument_count_check "${#}" '1' '1'
 	argument_to_filepath 'xmlFiles' ${@+"${@}"}
 
 	eval "set -- ${xmlFiles}"
@@ -2011,8 +2015,7 @@ GETOPTIONSHERE
 			;;
 		esac
 
-		printf '%s: ' "${name}"
-		opensearch_select --value-of 'normalize-space(os:ShortName)' "${xmlFile}"
+		printf '%s: %s\n' "${name}" "$(opensearch_select --value-of 'normalize-space(os:ShortName)' "${xmlFile}")"
 	done
 }
 
@@ -2355,7 +2358,7 @@ GETOPTIONSHERE
 
 	for xmlFile in  ${@+"${@}"}; do
 		if [ "${argCount}" -eq '0' ] \
-			&& url=$(opensearch_normalize "${xmlFile}" | opensearch_select -v 'moz:SearchForm' -)
+			&& url=$(opensearch_normalize "${xmlFile}" | opensearch_select --value-of 'moz:SearchForm' -)
 		then :; else
 			url=$(
 				opensearch_normalize "${xmlFile}" \
@@ -2555,8 +2558,8 @@ GETOPTIONSHERE
 		for element in ${@+"${@}"}; do
 			case "${format}" in
 				'text') opensearch_normalize "${xmlFile}" | opensearch_file_show -s "match=${element}" -;;
-				'xml') opensearch_select -c "os:${element}" "${xmlFile}";;
-				'normalized-xml') opensearch_normalize "${xmlFile}" | opensearch_select -c "os:${element}";;
+				'xml') opensearch_select --copy-of "os:${element}" "${xmlFile}";;
+				'normalized-xml') opensearch_normalize "${xmlFile}" | opensearch_select --copy-of "os:${element}";;
 			esac
 		done
 	done
