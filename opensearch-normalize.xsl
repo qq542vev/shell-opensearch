@@ -7,8 +7,8 @@
 
 		id - 0a4fc3b0-7960-403f-bb0d-c1a09ebdb349
 		author - <qq542vev at https://purl.org/meta/me/>
-		version - 0.1.0
-		date - 2022-11-13
+		version - 0.1.1
+		date - 2022-11-19
 		since - 2022-11-13
 		copyright - Copyright (C) 2022-2022 qq542vev. Some rights reserved.
 		license - <CC-BY at https://creativecommons.org/licenses/by/4.0/>
@@ -154,9 +154,8 @@
 	</xsl:template>
 
 	<xsl:template match="
-		os:Url/@indexOffset | os:Url/@pageOffset
-		| os:Image/@width | os:Image/@height
-		| os:Query/@count | os:Query/@startIndex | os:Query/@startPage
+		os:Url/@indexOffset | os:Url/@pageOffset | os:Image/@width | os:Image/@height
+		| os:Query/@totalResults | os:Query/@count | os:Query/@startIndex | os:Query/@startPage
 	">
 		<xsl:attribute name="{name()}">
 			<xsl:value-of select="translate(normalize-space(), '+', '')"/>
@@ -164,10 +163,8 @@
 	</xsl:template>
 
 	<xsl:template match="
-		os:Url/@template | os:Url/@type | os:Url/@rel | os:Url/@indexOffset | os:Url/@pageOffset
-		| os:Query/@role | os:Query/@totalResults | os:Query/@startIndex| os:Query/@startPage
-		| os:Query/@language | os:Query/@inputEncoding | os:Query/@outputEncoding
-		| os:Image/@width | os:Image/@height | os:Image/@type
+		os:Url/@template | os:Url/@type | os:Url/@rel | os:Image/@type
+		| os:Query/@role | os:Query/@language | os:Query/@inputEncoding | os:Query/@outputEncoding
 	">
 		<xsl:attribute name="{name()}">
 			<xsl:value-of select="normalize-space()"/>

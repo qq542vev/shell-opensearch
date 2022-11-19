@@ -1075,7 +1075,7 @@ GETOPTIONSHERE
 	eval "set -- ${xmlFiles}"
 
 	for xmlFile in ${@+"${@}"}; do
-		if email="$(opensearch_select -v 'normalize-space(os:Contact)' "${xmlFile}")"; then :; else
+		if email="$(opensearch_select --value-of 'normalize-space(os:Contact)' "${xmlFile}")"; then :; else
 			printf "'%s' に連絡先が存在しません。\\n" "${xmlFile}" >&2
 
 			end_call "${EX_DATAERR}"
@@ -1991,12 +1991,8 @@ GETOPTIONSHERE
 	parse_list ${@+"${@}"}
 	eval "set -- ${REST}"
 
-	case "${#}" in
-		'0') set -- '.'
-	esac
-
-	argument_count_check "${#}" '1' '1'
-	argument_to_filepath 'xmlFiles' ${@+"${@}"}
+	argument_count_check "${#}" '0' '1'
+	argument_to_filepath 'xmlFiles' "${1-}"
 
 	eval "set -- ${xmlFiles}"
 
@@ -2006,6 +2002,7 @@ GETOPTIONSHERE
 		if opensearch_file_check --quiet "${xmlFile}"; then :; else
 			printf "'%s' は OpenSearch description document ではありません。\\n" "${xmlFile}" >&2
 
+			status="${EX_DATAERR}"
 			continue
 		fi
 
@@ -2017,6 +2014,8 @@ GETOPTIONSHERE
 
 		printf '%s: %s\n' "${name}" "$(opensearch_select --value-of 'normalize-space(os:ShortName)' "${xmlFile}")"
 	done
+
+	end_call "${status:-0}"
 }
 
 opensearch_normalize() {
@@ -2874,8 +2873,8 @@ GETOPTIONSHERE
 	parse_validate ${@+"${@}"}
 	eval "set -- ${REST}"
 
-	argument_count_check "${#}" '1' '1'
-	argument_to_filepath 'xmlFiles' "${1}"
+	argument_count_check "${#}" '0' '1'
+	argument_to_filepath 'xmlFiles' "${1-}"
 
 	eval "set -- ${xmlFiles}"
 
