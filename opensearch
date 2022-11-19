@@ -1069,8 +1069,8 @@ GETOPTIONSHERE
 	parse_contact ${@+"${@}"}
 	eval "set -- ${REST}"
 
-	argument_count_check "${#}" '1' '1'
-	argument_check 'xmlFiles' ${@+"${@}"}
+	argument_count_check "${#}" '0' '1'
+	argument_check 'xmlFiles' "${1-}"
 
 	eval "set -- ${xmlFiles}"
 
