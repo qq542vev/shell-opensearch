@@ -637,7 +637,6 @@ download() {
 		)
 
 		return 0
-		;;
 	esac
 
 	if command -v 'wget' >'/dev/null'; then
@@ -1081,7 +1080,7 @@ GETOPTIONSHERE
 	for xmlFile in ${@+"${@}"}; do
 		opensearch_file_check --err --quiet "${xmlFile}" || skip_error "${skipFlag}" 'status' "${EX_DATAERR}"
 
-		if email="$(opensearch_select --value-of 'normalize-space(os:Contact)' "${xmlFile}")"; then :; else
+		if ! email="$(opensearch_select --value-of 'normalize-space(os:Contact)' "${xmlFile}")"; then
 			printf "%s: '%s' に連絡先が存在しません。\\n" "${0##*/}" "${xmlFile}" >&2
 
 			skip_error "${skipFlag}" 'status' "${EX_DATAERR}"
@@ -1090,13 +1089,11 @@ GETOPTIONSHERE
 		append_array_posix 'emails' "${email}"
 	done
 
-	case "${emails-}" in
-		'') end_call "${status:-0}"
-	esac
-
-	case "${extarnal}" in
-		'echo') eval 'printf "%s\\n"' "${emails}";;
-		*) LC_ALL="${ORIGINAL_LC_ALL}" eval 'sh -c "${extarnal:-${MAILER:-mutt}} \${@+\"\${@}\"}" sh' "${emails}";;
+	case "${emails-}" in ?*)
+		case "${extarnal}" in
+			'echo') eval 'printf "%s\\n"' "${emails}";;
+			*) LC_ALL="${ORIGINAL_LC_ALL}" eval 'sh -c "${extarnal:-${MAILER:-mutt}} \${@+\"\${@}\"}" sh' "${emails}";;
+		esac
 	esac
 
 	end_call "${status:-0}"
@@ -2011,7 +2008,7 @@ GETOPTIONSHERE
 	for xmlFile in ${@+"${@}"}; do
 		name="${xmlFile}"
 
-		if opensearch_file_check --err --quiet "${xmlFile}"; then :; else
+		if ! opensearch_file_check --err --quiet "${xmlFile}"; then
 			status="${EX_DATAERR}"
 			continue
 		fi
@@ -2019,7 +2016,6 @@ GETOPTIONSHERE
 		case "${pathFlag}${name}" in "0${configDir}/"*)
 			name="${name#${configDir}/}"
 			name="${name%.xml}"
-			;;
 		esac
 
 		printf '%s: %s\n' "${name}" "$(opensearch_select --value-of 'normalize-space(os:ShortName)' "${xmlFile}")"
@@ -2365,7 +2361,7 @@ GETOPTIONSHERE
 
 	argument_count_check "${#}" '0'
 	argument_to_filepath 'xmlFiles' "${1-}"
-	shift || :
+	${1+'shift'}
 
 	argCount="${#}"
 
@@ -2376,9 +2372,7 @@ GETOPTIONSHERE
 	for xmlFile in  ${@+"${@}"}; do
 		opensearch_file_check --err --quiet "${xmlFile}" || skip_error "${skipFlag}" 'status' "${EX_DATAERR}"
 
-		if [ "${argCount}" -eq '0' ] \
-			&& url=$(opensearch_normalize "${xmlFile}" | opensearch_select --value-of 'moz:SearchForm' -)
-		then :; else
+		if [ "${argCount}" -ne '0' ] || ! url=$(opensearch_normalize "${xmlFile}" | opensearch_select --value-of 'moz:SearchForm' -); then
 			url=$(
 				opensearch_normalize "${xmlFile}" \
 				| opensearch_url_element_to_tsv - 'results' \
@@ -2390,13 +2384,11 @@ GETOPTIONSHERE
 		append_array_posix 'urls' "${url}"
 	done
 
-	case "${urls-}" in
-		'') end_call "${status:-0}"
-	esac
-
-	case "${extarnal}" in
-		'echo') eval 'printf "%s\\n"' "${urls}";;
-		*) LC_ALL="${ORIGINAL_LC_ALL}" eval 'sh -c "${extarnal:-${BROWSER:-lynx}} \${@+\"\${@}\"}" sh' "${urls}";;
+	case "${urls-}" in ?*)
+		case "${extarnal}" in
+			'echo') eval 'printf "%s\\n"' "${urls}";;
+			*) LC_ALL="${ORIGINAL_LC_ALL}" eval 'sh -c "${extarnal:-${BROWSER:-lynx}} \${@+\"\${@}\"}" sh' "${urls}";;
+		esac
 	esac
 
 	end_call "${status:-0}"
@@ -2546,7 +2538,7 @@ GETOPTIONSHERE
 
 	argument_count_check "${#}" '0'
 	argument_to_filepath 'xmlFiles' "${1-}"
-	shift || :
+	${1+'shift'}
 
 	for element in ${@+"${@}"}; do
 		case "${element}" in
@@ -2590,7 +2582,6 @@ GETOPTIONSHERE
 			esac
 
 			continue
-			;;
 		esac
 
 		for element in ${@+"${@}"}; do
@@ -3432,9 +3423,7 @@ fi
 
 case "${#}" in '0')
 	usage
-
 	end_call
-	;;
 esac
 
 subCommand="${1}"

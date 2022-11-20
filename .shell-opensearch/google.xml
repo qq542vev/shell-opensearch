@@ -7,4 +7,4 @@
 	<moz:SearchForm>https://www.google.com/</moz:SearchForm>
 	<Url type="text/html" rel="results" template="https://www.google.com/search?q={searchTerms}"/>
 	<Url type="application/x-suggestions+json" rel="suggestions" template="https://suggestqueries.google.com/complete/search?q={searchTerms}"/>
-</SearchPlugin>
+</OpenSearchDescription>
