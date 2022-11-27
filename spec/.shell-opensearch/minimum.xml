@@ -1,0 +1,6 @@
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+  <ShortName>Web Search</ShortName>
+  <Description>Use Example.com to search the Web.</Description>
+  <Url type="application/xhtml+xml"
+       template="http://example.com/?q={searchTerms}"/>
+</OpenSearchDescription>
