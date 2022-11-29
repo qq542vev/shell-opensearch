@@ -9,7 +9,7 @@
 ##   id - 6343b25a-bc74-43b4-8e61-e38b9d95523c
 ##   author - <qq542vev at https://purl.org/meta/me/>
 ##   version - 0.1.0
-##   date - 2022-11-12
+##   date - 2022-11-29
 ##   since - 2020-04-20
 ##   copyright - Copyright (C) 2020-2022 qq542vev. Some rights reserved.
 ##   license - <CC-BY at https://creativecommons.org/licenses/by/4.0/>
@@ -1856,14 +1856,21 @@ opensearch_file_show() {
 
 			<xsl:template match="os:Language | os:InputEncoding | os:OutputEncoding">
 				<xsl:if test="position() = 1">
-					<xsl:text> </xsl:text>
+					<xsl:text> [ </xsl:text>
 				</xsl:if>
 
-				<xsl:value-of select="normalize-space()"/>
+				<xsl:choose>
+					<xsl:when test="normalize-space() = '*'">
+						<xsl:value-of select="concat(&quot;'&quot;, normalize-space(), &quot;'&quot;)"/>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:value-of select="normalize-space()"/>
+					</xsl:otherwise>
+				</xsl:choose>
 
 				<xsl:choose>
 					<xsl:when test="position() = last()">
-						<xsl:text>&#xA;</xsl:text>
+						<xsl:text> ]&#xA;</xsl:text>
 					</xsl:when>
 					<xsl:otherwise>, </xsl:otherwise>
 				</xsl:choose>
@@ -2563,7 +2570,7 @@ GETOPTIONSHERE
 		opensearch_file_check --err --quiet "${xmlFile}" || skip_error "${skipFlag}" 'status' "${EX_DATAERR}"
 
 		if [ '2' -le "${xmlFileCount}" ]; then
-			printf '=== %s ===\n' "${xmlFile}"
+			printf -- '--- # %s\n' "${xmlFile}"
 		fi
 
 		eval "set -- ${elements-}"

@@ -8,7 +8,7 @@
 		id - ff68a9ee-63b4-4d79-925a-237542d63289
 		author - <qq542vev at https://purl.org/meta/me/>
 		version - 0.1.0
-		date - 2022-11-13
+		date - 2022-11-28
 		since - 2022-11-13
 		copyright - Copyright (C) 2022-2022 qq542vev. Some rights reserved.
 		license - <CC-BY at https://creativecommons.org/licenses/by/4.0/>
@@ -19,6 +19,7 @@
 		* <Project homepage at https://github.com/qq542vev/shell-opensearch>
 		* <Bag report at https://github.com/qq542vev/shell-opensearch/issues>
 -->
+<?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet
 	version="1.0"
 	xmlns:os="http://a9.com/-/spec/opensearch/1.1/"
@@ -121,14 +122,21 @@
 
 	<xsl:template match="os:Language | os:InputEncoding | os:OutputEncoding">
 		<xsl:if test="position() = 1">
-			<xsl:text> </xsl:text>
+			<xsl:text> [ </xsl:text>
 		</xsl:if>
 
-		<xsl:value-of select="normalize-space()"/>
+		<xsl:choose>
+			<xsl:when test="normalize-space() = '*'">
+				<xsl:value-of select="concat(&quot;'&quot;, normalize-space(), &quot;'&quot;)"/>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:value-of select="normalize-space()"/>
+			</xsl:otherwise>
+		</xsl:choose>
 
 		<xsl:choose>
 			<xsl:when test="position() = last()">
-				<xsl:text>&#xA;</xsl:text>
+				<xsl:text> ]&#xA;</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>, </xsl:otherwise>
 		</xsl:choose>
