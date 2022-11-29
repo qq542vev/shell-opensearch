@@ -1,13 +1,13 @@
 #!/usr/bin/env sh
 
-### File: opensearch-general_spec.sh
+### File: opensearch-base_spec.sh
 ##
-## opensearch のベーステスト。
+## opensearch のテスト。
 ##
 ## Usage:
 ##
 ## ------ Text ------
-## shellspec opensearch-general_spec.sh
+## shellspec opensearch-base_spec.sh
 ## ------------------
 ##
 ## Metadata:
@@ -38,7 +38,7 @@ Describe 'opensearch base test'
 		'nil'   ''  '1' '64'
 	End
 
-	Example "./openseaarch ${1}"
+	Example "./openseaarch '${1}'"
 		When call ./opensearch ${1}
 		The length of stdout should ${2:+'not'} eq 0
 		The length of stderr should ${3:+'not'} eq 0

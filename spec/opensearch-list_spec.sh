@@ -2,7 +2,7 @@
 
 ### File: opensearch-list_spec.sh
 ##
-## opensearch の list テスト。
+## opensearch list のテスト。
 ##
 ## Usage:
 ##
@@ -27,34 +27,34 @@
 
 eval "$(shellspec - -c) exit 1"
 
-Describe 'opensearch validate test'
-		title_check() {
-			eval "set -- ${1}"
+Describe 'opensearch list test'
+	name_check() {
+		eval "set -- ${1}"
 
-			printf '%s' "${line_check}" | awk -- "$(
-				cat <<-'__EOF__'
-				BEGIN {
-					split("", arguments)
+		printf '%s' "${line_check}" | awk -- "$(
+			cat <<-'__EOF__'
+			BEGIN {
+				split("", arguments)
 
-					for(i = 1; i < ARGC; i++) {
-						arguments[i] = ": " ARGV[i]
-						delete ARGV[i]
-					}
+				for(i = 1; i < ARGC; i++) {
+					arguments[i] = ": " ARGV[i]
+					delete ARGV[i]
 				}
+			}
 
-				!arguments[NR] || substr($0, length($0) - length(arguments[NR]) + 1) != arguments[NR] {
-					exit 1
-				}
-				__EOF__
-			)" ${@+"${@}"}
-		}
+			!arguments[NR] || substr($0, length($0) - length(arguments[NR]) + 1) != arguments[NR] {
+				exit 1
+			}
+			__EOF__
+		)" ${@+"${@}"}
+	}
 
-		setup() {
-			configDir="${PWD}/spec/.shell-opensearch" 
-			title="'Web Search'"
-		}
+	setup() {
+		configDir='./spec/.shell-opensearch'
+		name="'Web Search'"
+	}
 
-		BeforeAll 'setup'
+	BeforeAll 'setup'
 
 	Example 'オプション -h のテスト'
 		When call ./opensearch list -h
@@ -79,42 +79,42 @@ Describe 'opensearch validate test'
 
 	Describe 'OpenSearch ファイルを指定'
 		Parameters:block
-			'simple'   "${title}" ''  '0'
-			'detailed' "${title}" ''  '0'
+			'simple'   "${name}" ''  '0'
+			'detailed' "${name}" ''  '0'
 			'empty'    ''        '1' '65'
 			'draft2'   ''        '1' '65'
 			'nil'      ''        '1' '65'
-			'success/' "${title} ${title}" ''  '0'
-			'failure/' ''                  '1' '65'
-			'empty/'   ''                  ''  '0'
-			'nil/'     ''                  ''  '0'
-			'simple,detailed'   "${title} ${title}" ''  '0'
-			'simple,nil'        "${title}"          '1' '65'
-			'draft2,nil'        ''                  '1' '65'
-			'draft2,nil,simple' "${title}"          '1' '65'
-			'./spec/.shell-opensearch/simple.xml'   "${title}" ''  '0'
-			'./spec/.shell-opensearch/detailed.xml' "${title}" ''  '0'
-			'./spec/.shell-opensearch/empty.xml'    ''         '1' '65'
-			'./spec/.shell-opensearch/draft2.xml'   ''         '1' '65'
-			'./spec/.shell-opensearch/nil.xml'      ''         '1' '65'
+			'success/' "${name} ${name}" ''  '0'
+			'failure/' ''                '1' '65'
+			'empty/'   ''                ''  '0'
+			'nil/'     ''                ''  '0'
+			'simple,detailed'   "${name} ${name}" ''  '0'
+			'simple,nil'        "${name}"         '1' '65'
+			'draft2,nil'        ''                '1' '65'
+			'draft2,nil,simple' "${name}"         '1' '65'
+			'./spec/.shell-opensearch/simple.xml'   "${name}" ''  '0'
+			'./spec/.shell-opensearch/detailed.xml' "${name}" ''  '0'
+			'./spec/.shell-opensearch/empty.xml'    ''        '1' '65'
+			'./spec/.shell-opensearch/draft2.xml'   ''        '1' '65'
+			'./spec/.shell-opensearch/nil.xml'      ''        '1' '65'
 		End
 
 		Example "オプションなしのテスト: '${1}'"
 			When run source ./opensearch -c "${configDir}" list "${1}"
 			The lines of stdout should eq "$(eval "set -- ${2}"; printf '%d' "${#}")"
-			The stdout should satisfy title_check "${2}"
+			The stdout should satisfy name_check "${2}"
 			The length of stderr should ${3:+'not'} eq 0
 			The status should eq "${4}"
 		End
 
 		Example "オプション -p のテスト: '${1}'"
 			path_check() {
-				printf '%s' "${path_check}" | awk -- 'index($0, "/") != 1 && index($0, "./") != 1 { exit 1 }'
+				printf '%s' "${path_check}" | awk -- 'index($0, "/") != 1 && index($0, "./") != 1 { exit 1; }'
 			}
 
 			When run source ./opensearch -c "${configDir}" list -p "${1}"
 			The lines of stdout should eq "$(eval "set -- ${2}"; printf '%d' "${#}")"
-			The stdout should satisfy title_check "${2}"
+			The stdout should satisfy name_check "${2}"
 			The stdout should satisfy path_check
 			The length of stderr should ${3:+'not'} eq 0
 			The status should eq "${4}"

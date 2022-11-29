@@ -1078,12 +1078,12 @@ GETOPTIONSHERE
 	eval "set -- ${xmlFiles}"
 
 	for xmlFile in ${@+"${@}"}; do
-		opensearch_file_check --err --quiet "${xmlFile}" || skip_error "${skipFlag}" 'status' "${EX_DATAERR}"
+		opensearch_file_check --err --quiet "${xmlFile}" || eval "$(skip_error "${skipFlag}" 'status' "${EX_DATAERR}")"
 
 		if ! email="$(opensearch_select --value-of 'normalize-space(os:Contact)' "${xmlFile}")"; then
 			printf "%s: '%s' に連絡先が存在しません。\\n" "${0##*/}" "${xmlFile}" >&2
 
-			skip_error "${skipFlag}" 'status' "${EX_DATAERR}"
+			eval "$(skip_error "${skipFlag}" 'status' "${EX_DATAERR}")"
 		fi
 
 		append_array_posix 'emails' "${email}"
@@ -2374,7 +2374,7 @@ GETOPTIONSHERE
 	eval "set -- ${xmlFiles}"
 
 	for xmlFile in  ${@+"${@}"}; do
-		opensearch_file_check --err --quiet "${xmlFile}" || skip_error "${skipFlag}" 'status' "${EX_DATAERR}"
+		opensearch_file_check --err --quiet "${xmlFile}" || eval "$(skip_error "${skipFlag}" 'status' "${EX_DATAERR}")"
 
 		if [ "${argCount}" -ne '0' ] || ! url=$(opensearch_normalize "${xmlFile}" | opensearch_select --value-of 'moz:SearchForm' -); then
 			url=$(
@@ -2382,7 +2382,7 @@ GETOPTIONSHERE
 				| opensearch_url_element_to_tsv - 'results' \
 				| eval tsv_select_url \
 					'"${xmlFile}"' '"${mimeType}"' "${parameters}"
-			) || skip_error "${skipFlag}" 'status' "${?}" 
+			) || eval "$(skip_error "${skipFlag}" 'status' "${EX_DATAERR}")"
 		fi
 
 		append_array_posix 'urls' "${url}"
@@ -2567,7 +2567,7 @@ GETOPTIONSHERE
 	xmlFileCount="${#}"
 
 	for xmlFile in ${@+"${@}"}; do
-		opensearch_file_check --err --quiet "${xmlFile}" || skip_error "${skipFlag}" 'status' "${EX_DATAERR}"
+		opensearch_file_check --err --quiet "${xmlFile}" || eval "$(skip_error "${skipFlag}" 'status' "${EX_DATAERR}")"
 
 		if [ '2' -le "${xmlFileCount}" ]; then
 			printf -- '--- # %s\n' "${xmlFile}"
@@ -2732,7 +2732,7 @@ GETOPTIONSHERE
 	for xmlFile in ${@+"${@}"}; do
 		index=$((${index:-0} + 1))
 
-		opensearch_file_check --err --quiet "${xmlFile}" || skip_error "${skipFlag}" 'status' "${EX_DATAERR}"
+		opensearch_file_check --err --quiet "${xmlFile}" || eval "$(skip_error "${skipFlag}" 'status' "${EX_DATAERR}")"
 
 		downloadXML="${tmpDir}/download${index}.xml"
 		url=$(
@@ -2742,7 +2742,7 @@ GETOPTIONSHERE
 				'"${xmlFile}"' \
 				'"${OPENSEARCH_MIME_TYPES}"' \
 				"${parameters}"
-		) || skip_error "${skipFlag}" 'status' "${?}"
+		) || eval "$(skip_error "${skipFlag}" 'status' "${EX_DATAERR}")"
 
 		if
 			download "${downloadXML}" "${url}" "${OPENSEARCH_MIME_TYPES}" \
@@ -2754,7 +2754,7 @@ GETOPTIONSHERE
 			printf "%s: %s は OpenSearch description document ではありません。\\n" "${0##*/}" "${url}" >&2
 
 			rm -f -- "${downloadXML}"
-			skip_error "${skipFlag}" 'status' "${EX_DATAERR}"
+			eval "$(skip_error "${skipFlag}" 'status' "${EX_DATAERR}")"
 		fi
 	done
 
@@ -2941,8 +2941,8 @@ GETOPTIONSHERE
 
 skip_error() {
 	case "${1}" in
-		'1') eval "${2}=\"\${3}\"; continue";;
-		*) end_call "${3}"
+		'1') printf "%s='%s'; continue" "${2}" "${3}";;
+		*) printf "end_call '%d'" "${3}";;
 	esac
 }
 

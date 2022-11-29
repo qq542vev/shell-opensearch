@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+  <ShortName>Web Search</ShortName>
+  <Description>Use Example.com to search the Web.</Description>
+  <Tags>example web</Tags>
+  <Contact>admin@example.com</Contact>
+  <Url rel="results" indexOffset="1" pageOffset="1" type="application/rss+xml" template="http://example.com/?q={searchTerms}&amp;pw={startPage?}&amp;format=rss"/>
+  <LongName>Web Search</LongName>
+  <SyndicationRight>open</SyndicationRight>
+  <AdultContent>false</AdultContent>
+  <Language>*</Language>
+  <InputEncoding>UTF-8</InputEncoding>
+  <OutputEncoding>UTF-8</OutputEncoding>
+</OpenSearchDescription>

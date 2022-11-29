@@ -2,7 +2,7 @@
 
 ### File: opensearch-show_spec.sh
 ##
-## opensearch の show テスト。
+## opensearch show のテスト。
 ##
 ## Usage:
 ##
@@ -28,30 +28,8 @@
 eval "$(shellspec - -c) exit 1"
 
 Describe 'opensearch show test'
-	email_check() {
-		eval "set -- ${1}"
-
-		printf '%s' "${email_check}" | awk -- "$(
-			cat <<-'__EOF__'
-			BEGIN {
-				split("", arguments)
-
-				for(i = 1; i < ARGC; i++) {
-					arguments[i] = ARGV[i]
-					delete ARGV[i]
-				}
-			}
-
-			!(NR in arguments) || $0 != arguments[NR] {
-				exit 1
-			}
-			__EOF__
-		)" ${@+"${@}"}
-	}
-
 	setup() {
-		configDir="${PWD}/spec/.shell-opensearch" 
-		email="'admin@example.com'"
+		configDir='./spec/.shell-opensearch'
 	}
 
 	BeforeAll 'setup'
@@ -67,41 +45,58 @@ Describe 'opensearch show test'
 		When call ./opensearch show --nil
 		The length of stdout should eq 0
 		The length of stderr should not eq 0
-		The status should eq 64 
+		The status should eq 64
 	End
 
 	Example '2個以上の引数'
 		When call ./opensearch show simple detailed
 		The length of stdout should eq 0
 		The length of stderr should not eq 0
-		The status should eq 64 
+		The status should eq 64
+	End
+
+	Example "オプション -f nil のテスト: '${1}'"
+		When call ./opensearch -c "${configDir}" show -f nil
+		The length of stdout should eq 0
+		The length of stderr should not eq 0
+		The status should eq 64
 	End
 
 	Describe '基本となるテスト'
 		Parameters:block
-			'minimum' ''           '' '0'
-			'simple'  '1'   ''  '0'
-			'empty'    ''          '1' '65'
-			'draft2'   ''          '1' '65'
-			'nil'      ''          '1' '65'
-			'success/' '1' ''  '0'
-			'failure/' ''                   '1' '65'
-			'empty/'   ''                   ''  '0'
-			'nil/'     ''                   ''  '0'
-			'simple,detailed' '1' ''  '0'
-			'simple,minimum'  ''                    '' '0'
+			'simple'   'simple'   ''  '0'
+			'detailed' 'detailed' ''  '0'
+			'empty'    ''         '1' '65'
+			'draft2'   ''         '1' '65'
+			'nil'      ''         '1' '65'
+			'empty/'   ''         ''  '0'
+			'nil/'     ''         ''  '0'
+			'simple,detailed' 'simple-detailed' ''  '0'
 			'simple,nil'      ''                    '1' '65'
 			'draft2,nil'      ''                    '1' '65'
-			'./spec/.shell-opensearch/simple.xml'  "1" ''  '0'
-			'./spec/.shell-opensearch/minimul.xml' ''         '1' '65'
-			'./spec/.shell-opensearch/empty.xml'   ''         '1' '65'
-			'./spec/.shell-opensearch/nil.xml'     ''         '1' '65'
+			'./spec/.shell-opensearch/simple.xml'   'simple'   ''  '0'
+			'./spec/.shell-opensearch/detailed.xml' 'detailed' ''  '0'
+			'./spec/.shell-opensearch/empty.xml'    ''         '1' '65'
+			'./spec/.shell-opensearch/nil.xml'      ''         '1' '65'
 		End
 
 		Example "オプションなしのテスト: '${1}'"
 			When call ./opensearch -c "${configDir}" show "${1}"
-			#The lines of stdout should eq "$(eval "set -- ${2}"; printf '%d' "${#}")"
-			#The stdout should satisfy email_check "${2}"
+			The stdout should eq "$(cd -- 'spec/show-text'; : | eval "cat -- ${2}")"
+			The length of stderr should ${3:+'not'} eq 0
+			The status should eq "${4}"
+		End
+
+		Example "オプション -f xml のテスト: '${1}'"
+			When call ./opensearch -c "${configDir}" show -f xml "${1}"
+			The stdout should eq "$(cd -- 'spec/show-xml'; : | eval "cat -- ${2}")"
+			The length of stderr should ${3:+'not'} eq 0
+			The status should eq "${4}"
+		End
+
+		Example "オプション -f normalized-xml のテスト: '${1}'"
+			When call ./opensearch -c "${configDir}" show -f normalized-xml "${1}"
+			The stdout should eq "$(cd -- 'spec/show-normalized-xml'; : | eval "cat -- ${2}")"
 			The length of stderr should ${3:+'not'} eq 0
 			The status should eq "${4}"
 		End

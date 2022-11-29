@@ -2,7 +2,7 @@
 
 ### File: opensearch-contact_spec.sh
 ##
-## opensearch の contact テスト。
+## opensearch contact のテスト。
 ##
 ## Usage:
 ##
@@ -50,7 +50,7 @@ Describe 'opensearch contact test'
 	}
 
 	setup() {
-		configDir="${PWD}/spec/.shell-opensearch" 
+		configDir='./spec/.shell-opensearch'
 		email="'admin@example.com'"
 	}
 
@@ -67,14 +67,14 @@ Describe 'opensearch contact test'
 		When call ./opensearch contact --nil
 		The length of stdout should eq 0
 		The length of stderr should not eq 0
-		The status should eq 64 
+		The status should eq 64
 	End
 
 	Example '2個以上の引数'
 		When call ./opensearch contact simple detailed
 		The length of stdout should eq 0
 		The length of stderr should not eq 0
-		The status should eq 64 
+		The status should eq 64
 	End
 
 	Describe '基本となるテスト'

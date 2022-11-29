@@ -2,7 +2,7 @@
 
 ### File: opensearch-validate_spec.sh
 ##
-## opensearch の validate テスト。
+## opensearch validate のテスト。
 ##
 ## Usage:
 ##
@@ -50,7 +50,7 @@ Describe 'opensearch validate test'
 	}
 
 	setup() {
-		configDir="${PWD}/spec/.shell-opensearch" 
+		configDir="${PWD}/spec/.shell-opensearch"
 	}
 
 	BeforeAll 'setup'

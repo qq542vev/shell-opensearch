@@ -1,0 +1,16 @@
+ShortName: Web Search
+Description: Use Example.com to search the Web.
+Url:
+  - template: http://example.com/?q={searchTerms}&pw={startPage?}&format=rss
+    type: application/rss+xml
+    rel: results
+    indexOffset: 1
+    pageOffset: 1
+Contact: admin@example.com
+Tags: example web
+LongName: Web Search
+SyndicationRight: open
+AdultContent: false
+Language: [ '*' ]
+InputEncoding: [ UTF-8 ]
+OutputEncoding: [ UTF-8 ]
