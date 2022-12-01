@@ -19,7 +19,6 @@
 		* <Project homepage at https://github.com/qq542vev/shell-opensearch>
 		* <Bag report at https://github.com/qq542vev/shell-opensearch/issues>
 -->
-<?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet
 	version="1.0"
 	xmlns:os="http://a9.com/-/spec/opensearch/1.1/"
