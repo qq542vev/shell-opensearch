@@ -1,0 +1,1 @@
+﻿NDSearch.OnPrefixDataLoaded("uri",["Function"],[["uri_check",,[[,,,,0,"File:opensearch:uri_check"]]],["uri_parse",,[[,,,,0,"File:opensearch:uri_parse"]]],["uri_path_remove_dot_segments",,[[,,,,0,"File:opensearch:uri_path_remove_dot_segments"]]],["uri_relative_to_absolute",,[[,,,,0,"File:opensearch:uri_relative_to_absolute"]]]]);

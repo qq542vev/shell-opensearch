@@ -1,0 +1,1 @@
+﻿NDSummary.OnToolTipsLoaded("File:opensearch-normalize.xsl",{8:"<div class=\"NDToolTip TFile LXML\"><div class=\"TTSummary\">OpenSearch description document の正規化を行う</div></div>"});

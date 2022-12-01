@@ -1,0 +1,1 @@
+﻿NDSummary.OnToolTipsLoaded("File:spec/opensearch-contact_spec.sh",{1:"<div class=\"NDToolTip TFile LShellScript\"><div class=\"TTSummary\">opensearch contact のテスト。</div></div>"});

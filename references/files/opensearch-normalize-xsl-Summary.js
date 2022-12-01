@@ -1,0 +1,1 @@
+﻿NDFramePage.OnPageTitleLoaded("File:opensearch-normalize.xsl","opensearch-normalize.xsl");NDSummary.OnSummaryLoaded("File:opensearch-normalize.xsl",[["XML","XML"]],[["Files","File"]],[[8,0,0,"opensearch-normalize.xsl","opensearch-normalize.xsl"]]);

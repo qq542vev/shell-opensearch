@@ -1,0 +1,1 @@
+﻿NDSearch.OnPrefixDataLoaded("xsl",["File"],[["xsl",,[[,"opensearch-normalize.xsl",,,0,"File:opensearch-normalize.xsl:opensearch-normalize.xsl"],[,"opensearch-show.xsl",,,0,"File:opensearch-show.xsl:opensearch-show.xsl"]]]]);

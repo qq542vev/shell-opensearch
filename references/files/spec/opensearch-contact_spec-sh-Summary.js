@@ -1,0 +1,1 @@
+﻿NDFramePage.OnPageTitleLoaded("File:spec/opensearch-contact_spec.sh","opensearch-contact_spec.sh");NDSummary.OnSummaryLoaded("File:spec/opensearch-contact_spec.sh",[["ShellScript","ShellScript"]],[["Files","File"]],[[1,0,0,"opensearch-contact_spec.sh","opensearch-contact_spec.sh"]]);

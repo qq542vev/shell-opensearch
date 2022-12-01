@@ -1,0 +1,1 @@
+﻿NDSearch.OnPrefixDataLoaded("rng",["File"],[["rng",,[[,"opensearch.rng",,,0,"File:opensearch.rng:opensearch.rng"]]]]);

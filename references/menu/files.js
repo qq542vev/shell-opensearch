@@ -1,0 +1,1 @@
+﻿NDMenu.OnSectionLoaded("files.js",[[1,"opensearch"],[1,"opensearch.rng"],[1,"opensearch-normalize.xsl"],[1,"opensearch-show.xsl"],[1,"readme.md"],[2,"spec","File:spec/",[[1,"opensearch-base_spec.sh"],[1,"opensearch-contact_spec.sh"],[1,"opensearch-list_spec.sh"],[1,"opensearch-show_spec.sh"],[1,"opensearch-validate_spec.sh"]]]]);
