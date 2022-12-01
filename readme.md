@@ -7,7 +7,7 @@
 		id - 27b7cd63-6bcd-4043-a037-f8114f36f387
 		author - <qq542vev at https://purl.org/meta/me/>
 		version - 0.1.0
-		date - 2022-11-30
+		date - 2022-12-01
 		since - 2022-11-30
 		copyright - Copyright (C) 2022-2022 qq542vev. Some rights reserved.
 		license - <CC-BY at https://creativecommons.org/licenses/by/4.0/>
@@ -18,6 +18,8 @@
 		* <Project homepage at https://github.com/qq542vev/shell-opensearch>
 		* <Bag report at https://github.com/qq542vev/shell-opensearch/issues>
 -->
+
+# Shell OepnSearch
 
 Shell OepnSearch は [POSIX](https://pubs.opengroup.org/onlinepubs/9699919799/) 準拠の ShellScript で作成された OepnSearch 対応の検索クライアントです。[OpenSearch 1.1](https://github.com/dewitt/opensearch/blob/master/opensearch-1-1-draft-6.md) の仕様に準拠した OpenSearch description documents (以下 OSDD に省略) を利用して端末環境から検索などを行えます。
 
