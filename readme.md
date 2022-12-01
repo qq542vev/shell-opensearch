@@ -57,7 +57,7 @@ opensearch add example/ja 'http://www.example.com/ja/opensearch.xml'
 
 ## 検索を行う
 
-任意の OSDD を使用して検索を行えます。例えば以下のコマンドは example という識別子の検索エンジンで検索を行います。
+任意の OSDD を利用して検索を行えます。例えば以下のコマンドは example という識別子の検索エンジンで検索を行います。
 
 ~~~
 opensearch search example keyword1 keyword2 ...
