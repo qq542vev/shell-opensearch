@@ -8,7 +8,7 @@
 ##
 ##   id - 6343b25a-bc74-43b4-8e61-e38b9d95523c
 ##   author - <qq542vev at https://purl.org/meta/me/>
-##   version - 0.1.0
+##   version - 0.1.1
 ##   date - 2022-11-29
 ##   since - 2020-04-20
 ##   copyright - Copyright (C) 2020-2022 qq542vev. Some rights reserved.
@@ -64,11 +64,11 @@
 ##   143 - received SIGTERM
 ## ------------------
 
-readonly 'VERSION=opensearch 0.1.0'
+readonly 'VERSION=opensearch 0.1.1'
 
 set -efu
 umask '0022'
-ORIGINAL_LC_ALL="${ORIGINAL_LC_ALL-${LC_ALL-}}"
+readonly "LC_ALL_ORG=${LC_ALL-}"
 LC_ALL='C'
 IFS=$(printf ' \t\n_'); IFS="${IFS%_}"
 PATH="${PATH-}${PATH:+:}$(command -p getconf 'PATH')"
@@ -1090,7 +1090,7 @@ GETOPTIONSHERE
 	done
 
 	case "${emails-}" in ?*)
-		LC_ALL="${ORIGINAL_LC_ALL}" eval 'sh -c "${extarnal:-${MAILER:-mutt}} \${@+\"\${@}\"}" sh' "${emails}"
+		LC_ALL="${LC_ALL_ORG}" eval 'sh -c "${extarnal:-${MAILER:-mutt}} \${@+\"\${@}\"}" sh' "${emails}"
 	esac
 
 	end_call "${status:-0}"
@@ -2389,7 +2389,7 @@ GETOPTIONSHERE
 	done
 
 	case "${urls-}" in ?*)
-		LC_ALL="${ORIGINAL_LC_ALL}" eval 'sh -c "${extarnal:-${BROWSER:-lynx}} \${@+\"\${@}\"}" sh' "${urls}"
+		LC_ALL="${LC_ALL_ORG}" eval 'sh -c "${extarnal:-${BROWSER:-lynx}} \${@+\"\${@}\"}" sh' "${urls}"
 	esac
 
 	end_call "${status:-0}"
