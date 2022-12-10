@@ -903,7 +903,7 @@ GETOPTIONSHERE
 			cat -- "${downloadXML}" >"${dest}"
 		done
 
-		end_call
+		exit
 	elif xml format --html --quiet "${downloadXML}" | tee -- "${downloadHTML}" | xml validate --quiet -; then
 		baseURL=$(
 			{
