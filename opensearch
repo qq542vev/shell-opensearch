@@ -3428,7 +3428,8 @@ fi
 
 case "${#}" in '0')
 	usage
-	end_call
+
+	exit
 esac
 
 subCommand="${1}"
