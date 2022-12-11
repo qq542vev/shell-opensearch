@@ -2,7 +2,7 @@
 
 ### File: opensearch-base_spec.sh
 ##
-## opensearch のテスト。
+## opensearch の検証。
 ##
 ## Usage:
 ##
@@ -13,22 +13,22 @@
 ## Metadata:
 ##
 ##   id - aede3d0a-b8af-4424-ab5e-a2b33fd4304c
-##   author - qq542vev <https://purl.org/meta/me/>
+##   author - <qq542vev at https://purl.org/meta/me/>
 ##   version - 1.0.0
-##   date - 2022-12-01
+##   date - 2022-12-11
 ##   since - 2022-11-20
 ##   copyright - Copyright (C) 2022 qq542vev. Some rights reserved.
-##   license - CC-BY <https://creativecommons.org/licenses/by/4.0/>
+##   license - <CC-BY at https://creativecommons.org/licenses/by/4.0/>
 ##   package - shell-opensearch
 ##
 ## See Also:
 ##
-##   * Project homepage - <https://github.com/qq542vev/shell-opensearch>
-##   * Bag report - <https://github.com/qq542vev/shell-opensearch/issues>
+##   * <Project homepage at https://github.com/qq542vev/shell-opensearch>
+##   * <Bag report at https://github.com/qq542vev/shell-opensearch/issues>
 
 eval "$(shellspec - -c) exit 1"
 
-Describe 'opensearch base test'
+Describe 'opensearch の検証'
 	Parameters:block
 		''      '1' ''  '0'
 		'-c ./spec/.shell-opensearch' '1' ''  '0'
@@ -39,7 +39,7 @@ Describe 'opensearch base test'
 		'nil'   ''  '1' '64'
 	End
 
-	Example "./openseaarch '${1}'"
+	Example "openseaarch ${1}"
 		When call ./opensearch ${1}
 		The length of stdout should ${2:+'not'} eq 0
 		The length of stderr should ${3:+'not'} eq 0

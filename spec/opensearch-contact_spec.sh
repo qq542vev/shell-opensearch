@@ -2,7 +2,7 @@
 
 ### File: opensearch-contact_spec.sh
 ##
-## opensearch contact のテスト。
+## opensearch contact の検証。
 ##
 ## Usage:
 ##
@@ -13,22 +13,22 @@
 ## Metadata:
 ##
 ##   id - 043438cc-6314-4ea0-a726-a65a58fe275e
-##   author - qq542vev <https://purl.org/meta/me/>
+##   author - <qq542vev at https://purl.org/meta/me/>
 ##   version - 1.0.0
-##   date - 2022-12-01
+##   date - 2022-12-11
 ##   since - 2022-11-23
 ##   copyright - Copyright (C) 2022 qq542vev. Some rights reserved.
-##   license - CC-BY <https://creativecommons.org/licenses/by/4.0/>
+##   license - <CC-BY at https://creativecommons.org/licenses/by/4.0/>
 ##   package - shell-opensearch
 ##
 ## See Also:
 ##
-##   * Project homepage - <https://github.com/qq542vev/shell-opensearch>
-##   * Bag report - <https://github.com/qq542vev/shell-opensearch/issues>
+##   * <Project homepage at https://github.com/qq542vev/shell-opensearch>
+##   * <Bag report at https://github.com/qq542vev/shell-opensearch/issues>
 
 eval "$(shellspec - -c) exit 1"
 
-Describe 'opensearch contact test'
+Describe 'opensearch contact の検証'
 	email_check() {
 		eval "set -- ${1}"
 
@@ -57,28 +57,28 @@ Describe 'opensearch contact test'
 
 	BeforeAll 'setup'
 
-	Example 'Option: -h'
+	Example 'ヘルプの検証: -h'
 		When call ./opensearch contact -h
 		The length of stdout should not eq 0
 		The length of stderr should eq 0
 		The status should eq 0
 	End
 
-	Example 'Option: --nil'
+	Example '無効なオプションの検証: --nil'
 		When call ./opensearch contact --nil
 		The length of stdout should eq 0
 		The length of stderr should not eq 0
 		The status should eq 64
 	End
 
-	Example '2個以上の引数'
+	Example '2個以上の引数の検証'
 		When call ./opensearch contact simple detailed
 		The length of stdout should eq 0
 		The length of stderr should not eq 0
 		The status should eq 64
 	End
 
-	Describe '基本となるテスト'
+	Describe '各種 OpenSearch ファイルによる検証'
 		Parameters:block
 			'minimum' ''           '1' '65'
 			'simple'  "${email}"   ''  '0'
@@ -99,7 +99,7 @@ Describe 'opensearch contact test'
 			'./spec/.shell-opensearch/nil.xml'     ''         '1' '65'
 		End
 
-		Example "オプションなしのテスト: '${1}'"
+		Example "オプションなしの検証: '${1}'"
 			When call ./opensearch -c "${configDir}" contact "${1}"
 			The lines of stdout should eq "$(eval "set -- ${2}"; printf '%d' "${#}")"
 			The stdout should satisfy email_check "${2}"
@@ -107,7 +107,7 @@ Describe 'opensearch contact test'
 			The status should eq "${4}"
 		End
 
-		Example "--extarnal のテスト: '${1}'"
+		Example "--extarnal の検証: '${1}'"
 			When call env 'MAILER=echo' ./opensearch -c "${configDir}" contact -e "${1}"
 			The lines of stdout should eq "$(eval "set -- ${2}"; printf '%d' "$((1 <= ${#}))")"
 			The length of stderr should ${3:+'not'} eq 0
@@ -122,7 +122,7 @@ Describe 'opensearch contact test'
 		End
 	End
 
-	Describe '--skip-error を有効にする'
+	Describe '--skip-error を有効にして各種 OpenSearch ファイルを検証'
 		email='admin@example.com'
 		Parameters:block
 			'success/' "${email} ${email}" ''  '0'
@@ -135,7 +135,7 @@ Describe 'opensearch contact test'
 			'draft2,nil'      ''                  '1' '65'
 		End
 
-		Example "--skip-error のテスト: '${1}'"
+		Example "--skip-error の検証: '${1}'"
 			When call ./opensearch -c "${configDir}" contact -s "${1}"
 			The lines of stdout should eq "$(eval "set -- ${2}"; printf '%d' "${#}")"
 			The stdout should satisfy email_check "${2}"
