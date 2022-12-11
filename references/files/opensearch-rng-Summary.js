@@ -1,1 +1,1 @@
-﻿NDFramePage.OnPageTitleLoaded("File:opensearch.rng","opensearch.rng");NDSummary.OnSummaryLoaded("File:opensearch.rng",[["XML","XML"]],[["Files","File"]],[[7,0,0,"opensearch.rng","opensearch.rng"]]);
+﻿NDFramePage.OnPageTitleLoaded("File:opensearch.rng","opensearch.rng");NDSummary.OnSummaryLoaded("File:opensearch.rng",[["XML","XML"]],[["Files","File"]],[[6,0,0,"opensearch.rng","opensearch.rng"]]);
