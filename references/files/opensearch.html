@@ -8,81 +8,81 @@
 
 <body onload="NDLoader.OnLoad('Content');" class="NDPage NDContentPage">
 
-<a name="opensearch"></a><a name="Topic26"></a><div class="CTopic TFile LShellScript first">
+<a name="opensearch"></a><a name="Topic10"></a><div class="CTopic TFile LShellScript first">
  <div class="CTitle">opensearch</div>
  <div class="CBody"><p>Open Search を利用する。</p><div class="CHeading">Metadata</div><table class="CDefinitionList"><tr><td class="CDLEntry">id</td><td class="CDLDefinition"><p>6343b25a-bc74-43b4-8e61-e38b9d95523c</p></td></tr><tr><td class="CDLEntry">author</td><td class="CDLDefinition"><p><a href="https://purl.org/meta/me/" target="_top">qq542vev</a></p></td></tr><tr><td class="CDLEntry">version</td><td class="CDLDefinition"><p>0.1.1</p></td></tr><tr><td class="CDLEntry">date</td><td class="CDLDefinition"><p>2022-11-29</p></td></tr><tr><td class="CDLEntry">since</td><td class="CDLDefinition"><p>2020-04-20</p></td></tr><tr><td class="CDLEntry">copyright</td><td class="CDLDefinition"><p>Copyright (C) 2020-2022 qq542vev. Some rights reserved.</p></td></tr><tr><td class="CDLEntry">license</td><td class="CDLDefinition"><p><a href="https://creativecommons.org/licenses/by/4.0/" target="_top">CC-BY</a></p></td></tr><tr><td class="CDLEntry">package</td><td class="CDLDefinition"><p>shell-opensearch</p></td></tr></table><div class="CHeading">See Also</div><ul><li><p><a href="https://github.com/qq542vev/shell-opensearch" target="_top">Project homepage</a></p></li><li><p><a href="https://github.com/qq542vev/shell-opensearch/issues" target="_top">Bag report</a></p></li></ul><div class="CHeading">Help Output</div><pre class="CText">Usage:<br />  opensearch [OPTION]... [COMMAND]<br /><br />Options:<br />  -c,     --config-directory DIRECTORY<br />                              設定ファイルのディレクトリを指定する<br />  -h,     --help              このヘルプを表示して終了する<br />  -v,     --version           バージョン情報を表示して終了する<br /><br />Commands:<br />  add       OpenSearch description document を追加する<br />  contact   OpenSearch description document の作成者に連絡する<br />  list      OpenSearch description document の一覧を表示する<br />  search    OpenSearch description document を元に検索を行う<br />  show      OpenSearch description document を表示する<br />  update    OpenSearch description document を更新する<br />  validate  OpenSearch description document を検査する<br /><br />Exit Status:<br />    0 - successful termination<br />   64 - command line usage error<br />   65 - data format error<br />   66 - cannot open input<br />   67 - addressee unknown<br />   68 - host name unknown<br />   69 - service unavailable<br />   70 - internal software error<br />   71 - system error (e.g., can't fork)<br />   72 - critical OS file missing<br />   73 - can't create (user) output file<br />   74 - input/output error<br />   75 - temp failure; user is invited to retry<br />   76 - remote error in protocol<br />   77 - permission denied<br />   78 - configuration error<br />  129 - received SIGHUP<br />  130 - received SIGINT<br />  131 - received SIGQUIT<br />  143 - received SIGTERM</pre></div>
 </div>
 
-<a name="Functions"></a><a name="Topic10"></a><div class="CTopic TGroup LShellScript">
+<a name="Functions"></a><a name="Topic11"></a><div class="CTopic TGroup LShellScript">
  <div class="CTitle">Functions</div>
 </div>
 
-<a name="end_call"></a><a name="Topic11"></a><div class="CTopic TFunction LShellScript">
+<a name="end_call"></a><a name="Topic12"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">end_call</div>
  <div class="CBody"><p>一時ディレクトリを削除しスクリプトを終了する。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">$1</td><td class="CDLDefinition"><p>終了ステータス。</p></td></tr></table><div class="CHeading">Returns</div><p>$1 の終了ステータス。</p></div>
 </div>
 
-<a name="option_error"></a><a name="Topic12"></a><div class="CTopic TFunction LShellScript">
+<a name="option_error"></a><a name="Topic13"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">option_error</div>
  <div class="CBody"><p>エラーメッセージを出力する。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">$1</td><td class="CDLDefinition"><p>エラーメッセージ。</p></td></tr></table><div class="CHeading">Returns</div><p>終了コード64。</p></div>
 </div>
 
-<a name="regex_match"></a><a name="Topic13"></a><div class="CTopic TFunction LShellScript">
+<a name="regex_match"></a><a name="Topic14"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">regex_match</div>
  <div class="CBody"><p>文字列が正規表現に一致するか検査する。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">$1</td><td class="CDLDefinition"><p>検査する文字列。</p></td></tr><tr><td class="CDLEntry">$@</td><td class="CDLDefinition"><p>正規表現。</p></td></tr></table><div class="CHeading">Returns</div><p>0か1の真理値。</p></div>
 </div>
 
-<a name="append_array_posix"></a><a name="Topic14"></a><div class="CTopic TFunction LShellScript">
+<a name="append_array_posix"></a><a name="Topic15"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">append_array_posix</div>
  <div class="CBody"><p>配列風文字列に要素を追加する。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">$1</td><td class="CDLDefinition"><p>結果を代入する変数名。</p></td></tr><tr><td class="CDLEntry">$@</td><td class="CDLDefinition"><p>追加する要素。</p></td></tr></table></div>
 </div>
 
-<a name="__append_array_posix"></a><a name="Topic15"></a><div class="CTopic TFunction LShellScript">
+<a name="__append_array_posix"></a><a name="Topic16"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">__append_array_posix</div>
  <div class="CBody"><p>配列風文字列に要素を追加する。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">$1</td><td class="CDLDefinition"><p>結果を代入する変数名。</p></td></tr><tr><td class="CDLEntry">$2</td><td class="CDLDefinition"><p>追加する要素。</p></td></tr></table></div>
 </div>
 
-<a name="awkv_escape"></a><a name="Topic16"></a><div class="CTopic TFunction LShellScript">
+<a name="awkv_escape"></a><a name="Topic17"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">awkv_escape</div>
  <div class="CBody"><p>文字列内の AWK 特殊文字をエスケープする。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">$1</td><td class="CDLDefinition"><p>結果を代入する変数名。</p></td></tr><tr><td class="CDLEntry">$2</td><td class="CDLDefinition"><p>エスケープする文字列。</p></td></tr></table><div class="CHeading">See Also</div><ul><li><p><a href="https://qiita.com/ko1nksm/items/a22c0ce88e39c9f2dcb0#42-posix-%E6%BA%96%E6%8B%A0%E3%82%B7%E3%82%A7%E3%83%AB-%E7%94%A8" target="_top">4.2 POSIX 準拠シェル 用</a></p></li></ul></div>
 </div>
 
-<a name="uri_check"></a><a name="Topic17"></a><div class="CTopic TFunction LShellScript">
+<a name="uri_check"></a><a name="Topic18"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">uri_check</div>
  <div class="CBody"><p>文字列が URI であるか検査する。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">uri</td><td class="CDLDefinition"><p>検査する文字列。</p></td></tr><tr><td class="CDLEntry">relative</td><td class="CDLDefinition"><p>相対 URI を許可する。</p></td></tr></table><div class="CHeading">Returns</div><p>0か1の真理値。</p></div>
 </div>
 
-<a name="shell_argument"></a><a name="Topic18"></a><div class="CTopic TFunction LShellScript">
+<a name="shell_argument"></a><a name="Topic19"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">shell_argument</div>
  <div class="CBody"><p>安全な Shell Script 用の引数を生成する。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">string</td><td class="CDLDefinition"><p>引数となる文字列。</p></td></tr></table><div class="CHeading">Returns</div><p>Shell Script 用の引数。</p></div>
 </div>
 
-<a name="uri_path_remove_dot_segments"></a><a name="Topic19"></a><div class="CTopic TFunction LShellScript">
+<a name="uri_path_remove_dot_segments"></a><a name="Topic20"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">uri_path_remove_dot_segments</div>
  <div class="CBody"><p>パス文字列内からドットセグメントを除去する。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">path</td><td class="CDLDefinition"><p>パス文字列。</p></td></tr></table><div class="CHeading">Returns</div><p>ドットセグメントが除去された文字列。</p><div class="CHeading">See Also</div><ul><li><p><a href="https://www.rfc-editor.org/rfc/rfc3986#section-5.2.4" target="_top">5.2.4. Remove Dot Segments</a></p></li></ul></div>
 </div>
 
-<a name="uri_parse"></a><a name="Topic20"></a><div class="CTopic TFunction LShellScript">
+<a name="uri_parse"></a><a name="Topic21"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">uri_parse</div>
  <div class="CBody"><p>URI の構成要素を分離する。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">uri</td><td class="CDLDefinition"><p>分離する URI。</p></td></tr><tr><td class="CDLEntry">element</td><td class="CDLDefinition"><p>構成要素格納する配列。</p></td></tr></table></div>
 </div>
 
-<a name="uri_relative_to_absolute"></a><a name="Topic21"></a><div class="CTopic TFunction LShellScript">
+<a name="uri_relative_to_absolute"></a><a name="Topic22"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">uri_relative_to_absolute</div>
  <div class="CBody"><p>相対 URI を絶対 URI に変換する</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">uri</td><td class="CDLDefinition"><p>相対 URI。</p></td></tr><tr><td class="CDLEntry">baseURIElements</td><td class="CDLDefinition"><p>基底 URI の各要素の配列。</p></td></tr></table><div class="CHeading">See Also</div><ul><li><p><a href="https://www.rfc-editor.org/rfc/rfc3986#section-5.2.2" target="_top">5.2.2. Transform References</a></p></li></ul></div>
 </div>
 
-<a name="sysexits"></a><a name="Topic22"></a><div class="CTopic TFunction LShellScript">
+<a name="sysexits"></a><a name="Topic23"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">sysexits</div>
  <div class="CBody"><p>sysexits の終了コードを返す。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">code</td><td class="CDLDefinition"><p>sysexits で定義された終了コード。</p></td></tr></table><div class="CHeading">Returns</div><p>終了コードの番号。</p><div class="CHeading">See Also</div><ul><li><p><a href="https://www.freebsd.org/cgi/man.cgi?sektion=3&amp;query=sysexits" target="_top">sysexits(3)</a></p></li></ul></div>
 </div>
 
-<a name="url_decode"></a><a name="Topic23"></a><div class="CTopic TFunction LShellScript">
+<a name="url_decode"></a><a name="Topic24"></a><div class="CTopic TFunction LShellScript">
  <div class="CTitle">url_decode</div>
  <div class="CBody"><p>URL エンコードされた文字列をデコードする。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">string</td><td class="CDLDefinition"><p>デコードする文字列。</p></td></tr><tr><td class="CDLEntry">httpEncode</td><td class="CDLDefinition"><p>'+' をスペースにデコードする。</p></td></tr></table><div class="CHeading">Returns</div><p>デコードされた文字列。</p></div>
 </div>
 
-<a name="url_encode"></a><a name="Topic24"></a><div class="CTopic TFunction LShellScript last">
+<a name="url_encode"></a><a name="Topic25"></a><div class="CTopic TFunction LShellScript last">
  <div class="CTitle">url_encode</div>
  <div class="CBody"><p>文字列を URL エンコードする。</p><div class="CHeading">Parameters</div><table class="CDefinitionList"><tr><td class="CDLEntry">string</td><td class="CDLDefinition"><p>URL エンコードする文字列。</p></td></tr><tr><td class="CDLEntry">httpEncode</td><td class="CDLDefinition"><p>スペースを '+' にエンコードする。</p></td></tr></table><div class="CHeading">Returns</div><p>URL エンコードされた文字列。</p></div>
 </div>

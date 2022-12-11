@@ -1,1 +1,1 @@
-﻿NDSummary.OnToolTipsLoaded("File:spec/opensearch-validate_spec.sh",{2:"<div class=\"NDToolTip TFile LShellScript\"><div class=\"TTSummary\">opensearch validate のテスト。</div></div>"});
+﻿NDSummary.OnToolTipsLoaded("File:spec/opensearch-validate_spec.sh",{1:"<div class=\"NDToolTip TFile LShellScript\"><div class=\"TTSummary\">opensearch validate の検証。</div></div>"});
