@@ -907,14 +907,14 @@ GETOPTIONSHERE
 	elif xml format --html --quiet "${downloadXML}" | tee -- "${downloadHTML}" | xml validate --quiet -; then
 		baseURL=$(
 			{
-				xml select -N "xhtml=${XHTML_NS}" --template \
+				xml select --text -N "xhtml=${XHTML_NS}" --template \
 					--match '(/html/head/base | /xhtml:html/xhtml:head/xhtml:base)/@href[1]' \
 					--value-of 'normalize-space()' "${downloadHTML}" \
 				|| printf '%s' "${url}"
 			} | awk -v "baseURL=${url}" -- "${awkScript}"
 		)
 
-		xml select -N "xhtml=${XHTML_NS}" --template \
+		xml select --text -N "xhtml=${XHTML_NS}" --template \
 			--match '(/html/head/link | /xhtml:html/xhtml:head/xhtml:link)[@href]' \
 			--match "self::*[normalize-space(@type) = '${OPENSEARCH_MIME_TYPE}']" \
 			--match 'self::*[contains(concat(" ", translate(normalize-space(@rel), "SEARCH", "search"), " "), " search ")]' \
@@ -2399,6 +2399,7 @@ GETOPTIONSHERE
 
 opensearch_select() {
 	xml select \
+		$([ "${1}" '=' '--value-of' ] && printf '%s' '--text') \
 		-N "os=${OPENSEARCH_NS}" -N "moz=${MOZILLA_NS}" \
 		--template --match "os:OpenSearchDescription" ${@+"${@}"}
 }
