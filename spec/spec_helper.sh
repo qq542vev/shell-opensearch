@@ -1,24 +1,27 @@
-# shellcheck shell=sh
+### File: spec_helper.sh
+##
+## ShellSpec 用の共通ヘルパーファイル。
+##
+## Metadata:
+##
+##   id - 3bcb54f2-246b-4ac3-a6cd-8b07f9bfcf3f
+##   author - <qq542vev at https://purl.org/meta/me/>
+##   version - 1.0.0
+##   date - 2023-07-27
+##   since - 2023-07-27
+##   copyright - Copyright (C) 2023-2023 qq542vev. Some rights reserved.
+##   license - <CC-BY at https://creativecommons.org/licenses/by/4.0/>
+##   package - convert-it-passport
+##
+## See Also:
+##
+##   * <Project homepage at https://github.com/qq542vev/shell-opensearch>
+##   * <Bag report at https://github.com/qq542vev/shell-opensearch/issues>
 
-# Defining variables and functions here will affect all specfiles.
-# Change shell options inside a function may cause different behavior,
-# so it is better to set them here.
-# set -eu
+set -efu
 
-# This callback function will be invoked only once before loading specfiles.
-spec_helper_precheck() {
-  # Available functions: info, warn, error, abort, setenv, unsetenv
-  # Available variables: VERSION, SHELL_TYPE, SHELL_VERSION
-  : minimum_version "0.28.1"
-}
-
-# This callback function will be invoked after a specfile has been loaded.
-spec_helper_loaded() {
-  :
-}
-
-# This callback function will be invoked after core modules has been loaded.
-spec_helper_configure() {
-  # Available functions: import, before_each, after_each, before_all, after_all
-  : import 'support/custom_matcher'
-}
+if command xmlstarlet --help >'/dev/null' 2>&1; then
+	xml() {
+		command xmlstarlet ${@+"${@}"}
+	}
+fi
