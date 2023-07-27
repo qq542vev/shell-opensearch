@@ -29,7 +29,7 @@ Shell OepnSearch を利用するためには、お使いのコンピューター
 
 [GitHub Releases](https://github.com/qq542vev/shell-opensearch/releases) から最新版の opensearch をダウンロードして、任意の場所に設置してください。`opensearch` を実行し、コマンドのヘルプが表示されたら完了です。
 
-~~~
+~~~sh
 opensearch --help
 ~~~
 
@@ -39,19 +39,19 @@ opensearch --help
 
 検索を行うには任意の OSDD を追加する必要があります。`opensearch add` で追加が可能です。例として以下のコマンドで http://www.example.com/opensearch.xml にある OSDD を example という識別子で追加を行います。
 
-~~~
+~~~sh
 opensearch add example 'http://www.example.com/opensearch.xml'
 ~~~
 
 追加した OSDD はデフォルトでは、`~/.shell-opensearch` 内に配置されます。URL は OSDD だけではなく、OSDD へのリンクが記載されている HTML / XHTML の指定も可能です。
 
-~~~
+~~~sh
 opensearch add example 'http://www.example.com/index.html'
 ~~~
 
 階層的な識別子も可能です。以下の場合は、 `~/.shell-opensearch/example/ja.xml` に配置されます。
 
-~~~
+~~~sh
 opensearch add example/ja 'http://www.example.com/ja/opensearch.xml'
 ~~~
 
@@ -59,13 +59,13 @@ opensearch add example/ja 'http://www.example.com/ja/opensearch.xml'
 
 任意の OSDD を利用して検索を行えます。例えば以下のコマンドは example という識別子の検索エンジンで検索を行います。
 
-~~~
+~~~sh
 opensearch search example keyword1 keyword2 ...
 ~~~
 
 この場合には、`~/.shell-opensearch/example.xml` が利用されます。Shell OpenSearch では 0個以上の keyword を渡せますが、OSDD によっては1個以上の keyword が必要です。検索エンジンの識別子は `,` (カンマ)で区切ることにより、複数の指定も可能です。
 
-~~~
+~~~sh
 opensearch search example1,example2
 ~~~
 
@@ -73,13 +73,13 @@ opensearch search example1,example2
 
 `~/.shell-opensearch` 内のディレクトリを指定することも可能です。ディレクトリを指定するには末尾が `/` (スラッシュ)で終了する必要があります。ディレクトリ以下の全ての `*.xml` ファイルが利用されます。
 
-~~~
+~~~sh
 opensearch search example/
 ~~~
 
 任意の OSDD を利用する場合は、識別子の引数をファイルパスに置き換えてください。ただしファイルパスは、`/`, `./`, `../` の何れかで開始する必要があります。複数のファイルを指定することは不可能です。
 
-~~~
+~~~sh
 opensearch search ./example.xml
 ~~~
 
@@ -87,12 +87,12 @@ opensearch search ./example.xml
 
 デフォルトでは検索結果の URL を表示するのみですが、URL を Web ブラウザーなどを開いて検索結果を表示するには `-e`, `--extarnal` オプションを使用します。`--extarnal` のみで環境変数 `BROWSER` の値に、`--extarnal=COMMAND` で任意のコマンドに URL を引数として渡します。
 
-~~~
+~~~sh
 export BROWSER=firefox
 opensearch search example --extarnal
 ~~~
 
-~~~
+~~~sh
 opensearch search example --extarnal=firefox
 ~~~
 
@@ -104,13 +104,13 @@ OSDD によっては検索リクエストが複数定義されている場合が
 
 例として RSS の検索リクエストを指定するのは以下のコマンドです。
 
-~~~
+~~~sh
 opensearch search example --accept-type 'application/rss+xml,application/rdf+xml'
 ~~~
 
 `*` (アスタリスク)を指定することで任意レスポンスタイプにマッチします。例として `text/*` は全てのテキストメディアに、`*/*` で全てのメディアにマッチします。
 
-~~~
+~~~sh
 opensearch search example --accept-type '*/*'
 ~~~
 
@@ -118,13 +118,13 @@ opensearch search example --accept-type '*/*'
 
 OSDD によっては検索リクエストが特定の検索パラメータに対応している場合があります。特定の検索パラメータを指定するには `-p`, `--template-parameter` を使用します。OpenSearch 1.1 で定義されているコアセットの検索パラメータ(無修飾パラメータ)を指定するコマンドは以下です。
 
-~~~
+~~~sh
 opensearch search example --template-parameter 'count=100'
 ~~~
 
 拡張されたパラメータ(完全修飾パラメータ)を指定する場合は、検索パラメータの名前空間を指定する必要があります。
 
-~~~
+~~~sh
 opensearch search example --template-parameter '{http://example.com/opensearchextensions/1.0/}color=blue'
 ~~~
 
@@ -132,7 +132,7 @@ opensearch search example --template-parameter '{http://example.com/opensearchex
 
 OSDD 内に `<Url rel="self" type="application/opensearchdescription+xml" template="..."/>` の定義がある場合は、OSDD を更新することが可能です。
 
-~~~
+~~~sh
 opensearch update example
 ~~~
 
@@ -140,7 +140,7 @@ opensearch update example
 
 利用が可能な OSDD の識別子と検索エンジン名が一覧で表示されます。
 
-~~~
+~~~sh
 opensearch list
 ~~~
 
@@ -148,13 +148,13 @@ opensearch list
 
 `opensearch show` で OSDD の詳細の表示が可能です。
 
-~~~
+~~~sh
 opensearch show example
 ~~~
 
 デフォルトでは [YAML](https://yaml.org/) に似た形式で表示されます。XML で表示を行うには、`-f`, `--format` を指定します。
 
-~~~
+~~~sh
 opensearch show --format xml example
 ~~~
 

@@ -1,0 +1,14 @@
+# MD007/ul-indent - Unordered list indentation
+MD007:
+  # Spaces for indent
+  indent: 2
+  # Whether to indent the first level of the list
+  start_indented: true
+  # Spaces for first level indent (when start_indented is set)
+  start_indent: 1
+
+# MD013/line-length - Line length
+MD013: false
+
+# MD034/no-bare-urls - Bare URL used
+MD034: false
